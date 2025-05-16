@@ -1,59 +1,53 @@
-// Mock authentication service
-interface User {
-  name: string;
+
+// Simple auth service (to be replaced with real API calls)
+
+export interface User {
   email: string;
+  name: string;
   role: 'admin' | 'client';
-  token: string;
 }
 
-const mockUsers = [
-  {
-    email: 'admin@audit.com',
-    password: 'password',
-    name: 'Admin User',
-    role: 'admin' as const
-  },
-  {
-    email: 'cliente@empresa.com',
-    password: 'password',
-    name: 'Cliente Demo',
-    role: 'client' as const
-  }
-];
-
 export const login = async (email: string, password: string): Promise<User> => {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  const user = mockUsers.find(u => u.email === email && u.password === password);
-  
-  if (!user) {
-    throw new Error('Credenciales inválidas');
-  }
-  
-  // Generate a mock token
-  const token = btoa(`${user.email}:${Date.now()}`);
-  
-  return {
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    token
-  };
+  // This would be a real API call in production
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (email === 'admin@example.com' && password === 'password') {
+        const user = { 
+          email: 'admin@example.com', 
+          name: 'Admin User', 
+          role: 'admin' as const 
+        };
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('token', 'mock-jwt-token-for-admin');
+        resolve(user);
+      } else if (email === 'client@example.com' && password === 'password') {
+        const user = { 
+          email: 'client@example.com', 
+          name: 'Client User', 
+          role: 'client' as const 
+        };
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('token', 'mock-jwt-token-for-client');
+        resolve(user);
+      } else {
+        reject(new Error('Invalid credentials'));
+      }
+    }, 500);
+  });
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('token');
+  const token = localStorage.getItem('token');
+  return !!token;
 };
 
 export const getUser = (): User | null => {
-  const userStr = localStorage.getItem('user');
-  if (!userStr) return null;
+  const userJson = localStorage.getItem('user');
+  if (!userJson) return null;
   
   try {
-    return JSON.parse(userStr);
-  } catch (e) {
-    console.error('Failed to parse user data', e);
+    return JSON.parse(userJson) as User;
+  } catch {
     return null;
   }
 };
@@ -61,4 +55,4 @@ export const getUser = (): User | null => {
 export const logout = (): void => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-}; 
+};
