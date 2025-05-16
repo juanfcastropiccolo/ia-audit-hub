@@ -8,7 +8,7 @@ import ClientsPage from './views/admin/ClientsPage';
 import LogsPage from './views/admin/LogsPage';
 import ChatPage from './views/client/ChatPage';
 import LoginPage from './views/auth/LoginPage';
-import { isAuthenticated, getUser } from './api/auth';
+import { isAuthenticated as checkIsAuthenticated, getUser } from './api/auth';
 import './App.css';
 
 // Define a more specific type for user roles
@@ -16,7 +16,7 @@ type UserRole = 'admin' | 'client';
 
 // RequireAuth component to protect routes
 function RequireAuth({ children, allowedRole }: { children: JSX.Element, allowedRole: UserRole | null }) {
-  const authStatus = isAuthenticated();
+  const authStatus = checkIsAuthenticated();
   const user = getUser();
   const userRole = user?.role as UserRole | undefined;
   
@@ -56,7 +56,7 @@ function App() {
 
   // Authentication helper
   const checkAuth = () => {
-    return isAuthenticated();
+    return checkIsAuthenticated();
   };
 
   const handleLoginSuccess = (role: UserRole) => {
