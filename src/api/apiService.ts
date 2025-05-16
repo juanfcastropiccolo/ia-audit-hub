@@ -1,253 +1,159 @@
 
-import { ApiResponse, Client, Message, User } from '@/types';
+import { Client, Message, MessageRole } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
-// Base URL for API
-const API_BASE_URL = '/api';
-
-// Helper for HTTP requests
-async function fetchAPI<T>(
-  endpoint: string, 
-  method: string = 'GET', 
-  data?: any
-): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('audit-ia-token');
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      ...(data ? { body: JSON.stringify(data) } : {})
-    });
-
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.message || 'API request failed');
-    }
-    
-    return { success: true, data: result };
-  } catch (error) {
-    console.error('API request error:', error);
-    return { success: false, message: error instanceof Error ? error.message : 'Unknown error', data: {} as T };
-  }
-}
-
-// Auth API calls
-export const authApi = {
-  login: (email: string, password: string) => 
-    fetchAPI<{user: User, token: string}>('/auth/login', 'POST', { email, password }),
-  
-  logout: () => 
-    fetchAPI('/auth/logout', 'POST'),
-  
-  getProfile: () => 
-    fetchAPI<User>('/auth/me')
-};
-
-// Client API calls (admin)
-export const clientApi = {
-  getClients: () => 
-    fetchAPI<Client[]>('/admin/clients'),
-  
-  getClientById: (id: string) => 
-    fetchAPI<Client>(`/admin/clients/${id}`),
-};
-
-// Chat API calls (client)
-export const chatApi = {
-  getMessages: () => 
-    fetchAPI<Message[]>('/chat/messages'),
-  
-  sendMessage: (content: string) => 
-    fetchAPI<Message>('/chat/messages', 'POST', { content }),
-  
-  uploadDocument: async (file: File) => {
-    const token = localStorage.getItem('audit-ia-token');
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/chat/upload`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: formData
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.message || 'Upload failed');
-      }
-      
-      return { success: true, data: result };
-    } catch (error) {
-      console.error('Upload error:', error);
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Unknown error', 
-        data: {} as Message 
-      };
-    }
-  }
-};
-
-// Mock functions for development (remove in production)
-export const mockAuthApi = {
-  login: async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simple mock authentication
-    if (email === 'admin@example.com' && password === 'password') {
-      const user: User = {
-        id: '1',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'admin'
-      };
-      localStorage.setItem('audit-ia-user', JSON.stringify(user));
-      localStorage.setItem('audit-ia-token', 'mock-token-admin');
-      return { success: true, data: { user, token: 'mock-token-admin' } };
-    } 
-    else if (email === 'client@example.com' && password === 'password') {
-      const user: User = {
-        id: '2',
-        name: 'Client User',
-        email: 'client@example.com',
-        role: 'client'
-      };
-      localStorage.setItem('audit-ia-user', JSON.stringify(user));
-      localStorage.setItem('audit-ia-token', 'mock-token-client');
-      return { success: true, data: { user, token: 'mock-token-client' } };
-    }
-    
-    return { 
-      success: false, 
-      message: 'Invalid credentials', 
-      data: {} as {user: User, token: string} 
-    };
+// Mock client data for demonstration
+const mockClients: Client[] = [
+  {
+    id: '1',
+    name: 'Juan Pérez',
+    company: 'Constructora XYZ',
+    lastActive: '2023-05-15T10:30:00Z',
+    status: 'active'
   },
-  
-  logout: async () => {
-    localStorage.removeItem('audit-ia-user');
-    localStorage.removeItem('audit-ia-token');
-    return { success: true, data: {} };
+  {
+    id: '2',
+    name: 'María Rodríguez',
+    company: 'Restaurantes ABC',
+    lastActive: '2023-05-14T15:45:00Z',
+    status: 'active'
   },
-  
-  getProfile: async () => {
-    const userStr = localStorage.getItem('audit-ia-user');
-    if (!userStr) {
-      return { success: false, message: 'Not authenticated', data: {} as User };
-    }
-    
-    return { success: true, data: JSON.parse(userStr) as User };
+  {
+    id: '3',
+    name: 'Carlos Gómez',
+    company: 'Transportes Rápidos',
+    lastActive: '2023-05-10T09:15:00Z',
+    status: 'inactive'
+  },
+  {
+    id: '4',
+    name: 'Ana Torres',
+    company: 'Consultora Legal',
+    lastActive: '2023-05-16T11:20:00Z',
+    status: 'active'
   }
-};
+];
 
-// Mock client API
+// Mock chat messages for demonstration
+const mockMessages: Message[] = [
+  {
+    id: '1',
+    content: 'Bienvenido a su auditoría. ¿En qué puedo ayudarle hoy?',
+    timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    role: MessageRole.ASSISTANT,
+    status: 'delivered'
+  }
+];
+
+// Simulate API delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Mock client API functions
 export const mockClientApi = {
+  // Get all clients
   getClients: async () => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockClients: Client[] = [
-      {
-        id: '1',
-        name: 'Empresa ABC',
-        company: 'ABC Corporation',
-        lastActive: new Date().toISOString(),
-        status: 'active'
-      },
-      {
-        id: '2',
-        name: 'Finanzas XYZ',
-        company: 'XYZ Financial',
-        lastActive: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        status: 'active'
-      },
-      {
-        id: '3',
-        name: 'Seguros Global',
-        company: 'Global Insurance',
-        lastActive: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-        status: 'inactive'
-      },
-      {
-        id: '4',
-        name: 'Tecnología Avanzada',
-        company: 'Advanced Tech',
-        lastActive: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-        status: 'active'
-      }
-    ];
-    
-    return { success: true, data: mockClients };
+    await delay(800);
+    return {
+      success: true,
+      data: mockClients
+    };
   },
   
-  getClientById: async (id: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  // Get client by ID
+  getClient: async (id: string) => {
+    await delay(500);
+    const client = mockClients.find(c => c.id === id);
     
-    const client: Client = {
-      id,
-      name: `Client ${id}`,
-      company: `Company ${id}`,
-      lastActive: new Date().toISOString(),
-      status: 'active'
+    if (!client) {
+      return {
+        success: false,
+        message: 'Client not found'
+      };
+    }
+    
+    return {
+      success: true,
+      data: client
     };
-    
-    return { success: true, data: client };
   }
 };
 
-// Mock chat API
+// Mock chat API functions
 export const mockChatApi = {
-  getMessages: async () => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        role: 'assistant',
-        content: '¡Hola! Soy el Asistente de Auditoría. ¿En qué puedo ayudarte hoy?',
-        timestamp: new Date(Date.now() - 3600000).toISOString()
-      }
-    ];
-    
-    return { success: true, data: mockMessages };
+  // Get chat history
+  getChatHistory: async () => {
+    await delay(1000);
+    return {
+      success: true,
+      data: [...mockMessages]
+    };
   },
   
+  // Send a message
   sendMessage: async (content: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await delay(500);
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content: `He recibido tu mensaje: "${content}". El equipo de auditoría está analizando tu caso.`,
-      timestamp: new Date().toISOString()
+    // Create user message
+    const userMessage: Message = {
+      id: uuidv4(),
+      content,
+      timestamp: new Date().toISOString(),
+      role: MessageRole.USER,
+      status: 'delivered'
     };
     
-    return { success: true, data: newMessage };
+    mockMessages.push(userMessage);
+    
+    // Simulate AI response after a delay
+    await delay(1500);
+    
+    // Generate AI response based on user message
+    let responseContent = '';
+    
+    if (content.toLowerCase().includes('informe') || content.toLowerCase().includes('reporte')) {
+      responseContent = 'Puedo ayudarle a preparar un informe. ¿Qué tipo de información necesita incluir?';
+    } else if (content.toLowerCase().includes('impuesto') || content.toLowerCase().includes('fiscal')) {
+      responseContent = 'Las consideraciones fiscales son importantes. Según la normativa vigente, debería considerar estos aspectos principales: deducibilidad, IVA, retenciones y documentación soporte.';
+    } else if (content.toLowerCase().includes('ayuda') || content.toLowerCase().includes('help')) {
+      responseContent = 'Estoy aquí para ayudarle con su auditoría. Puede preguntarme sobre preparación de informes, cumplimiento normativo, análisis de datos o cualquier otra consulta relacionada.';
+    } else {
+      responseContent = 'Entiendo su consulta. Déjeme analizar esta información con nuestro equipo de auditoría y le proporcionaré una respuesta detallada.';
+    }
+    
+    // Create assistant response
+    const assistantMessage: Message = {
+      id: uuidv4(),
+      content: responseContent,
+      timestamp: new Date().toISOString(),
+      role: MessageRole.ASSISTANT,
+      status: 'delivered'
+    };
+    
+    mockMessages.push(assistantMessage);
+    
+    return {
+      success: true,
+      data: assistantMessage
+    };
   },
   
+  // Upload a document
   uploadDocument: async (file: File) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await delay(2000);
     
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      role: 'system',
-      content: `Documento "${file.name}" recibido. El equipo de auditoría analizará este documento.`,
-      timestamp: new Date().toISOString()
+    const systemMessage: Message = {
+      id: uuidv4(),
+      content: `Documento "${file.name}" recibido y procesado. Tamaño: ${(file.size / 1024).toFixed(2)} KB.`,
+      timestamp: new Date().toISOString(),
+      role: MessageRole.SYSTEM,
+      status: 'delivered'
     };
     
-    return { success: true, data: newMessage };
+    mockMessages.push(systemMessage);
+    
+    return {
+      success: true,
+      data: systemMessage
+    };
   }
 };

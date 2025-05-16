@@ -1,170 +1,159 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast } from 'sonner';
 import { Message, MessageRole } from '@/types';
 import { mockChatApi as chatApi } from '@/api/apiService';
+import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
+import { useSocketConnection } from '@/hooks/useSocketConnection';
 
 interface ChatContextType {
   messages: Message[];
   loading: boolean;
-  error: string | null;
+  isTyping: boolean;
   sendMessage: (content: string) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
-  isTyping: boolean;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-export const ChatProvider = ({ children }: { children: ReactNode }) => {
+interface ChatProviderProps {
+  children: ReactNode;
+}
+
+export function ChatProvider({ children }: ChatProviderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
+  const { isConnected } = useSocketConnection();
   
-  // Fetch initial messages
+  // Load chat history on mount
   useEffect(() => {
-    const fetchMessages = async () => {
+    const loadChatHistory = async () => {
       try {
         setLoading(true);
-        setError(null);
-        
-        const response = await chatApi.getMessages();
+        const response = await chatApi.getChatHistory();
         
         if (response.success) {
           setMessages(response.data);
         } else {
-          setError(response.message || 'Error fetching messages');
-          toast.error(response.message || 'Error fetching messages');
+          toast.error(response.message || 'Error loading chat history');
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        setError(errorMessage);
-        toast.error(errorMessage);
+        console.error('Failed to load chat history:', error);
+        toast.error('Failed to load chat history');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchMessages();
+    loadChatHistory();
   }, []);
   
-  const sendMessage = async (content: string): Promise<void> => {
+  // Function to send a message
+  const sendMessage = async (content: string) => {
     if (!content.trim()) return;
     
-    // Add user message to the list immediately
-    const userMessage: Message = {
-      id: `temp-${Date.now()}`,
-      role: MessageRole.USER,
-      content,
-      timestamp: new Date().toISOString(),
-      status: 'sending'
-    };
-    
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    
     try {
+      // Add pending message
+      const tempId = uuidv4();
+      const pendingMessage: Message = {
+        id: tempId,
+        content,
+        timestamp: new Date().toISOString(),
+        role: MessageRole.USER,
+        status: 'sending'
+      };
+      
+      setMessages((prev) => [...prev, pendingMessage]);
+      
       // Show typing indicator
       setIsTyping(true);
       
-      // Send message to API
+      // Send to API
       const response = await chatApi.sendMessage(content);
       
-      // Update user message to sent status
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg.id === userMessage.id 
-            ? { ...msg, status: 'sent', id: Date.now().toString() } 
-            : msg
+      // Update pending message to delivered
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId ? { ...msg, status: 'delivered' } : msg
         )
       );
       
-      // Wait a moment before showing response (for UX)
-      setTimeout(() => {
-        if (response.success) {
-          setIsTyping(false);
-          // Add AI response to the list
-          setMessages(prevMessages => [...prevMessages, response.data]);
-        } else {
-          setIsTyping(false);
-          setError(response.message || 'Error sending message');
-          toast.error(response.message || 'Error sending message');
-        }
-      }, 500);
-      
-    } catch (error) {
-      setIsTyping(false);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      
-      // Update user message to error status
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg.id === userMessage.id 
-            ? { ...msg, status: 'error' } 
-            : msg
-        )
-      );
-    }
-  };
-  
-  const uploadDocument = async (file: File): Promise<void> => {
-    // Show uploading message
-    const uploadingMessage: Message = {
-      id: `upload-${Date.now()}`,
-      role: MessageRole.SYSTEM,
-      content: `Subiendo documento: ${file.name}...`,
-      timestamp: new Date().toISOString(),
-      status: 'sending'
-    };
-    
-    setMessages(prevMessages => [...prevMessages, uploadingMessage]);
-    
-    try {
-      const response = await chatApi.uploadDocument(file);
-      
-      // Remove uploading message and add confirmation
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.id !== uploadingMessage.id)
-      );
-      
+      // Add response from assistant
       if (response.success) {
-        setMessages(prevMessages => [...prevMessages, response.data]);
-        toast.success(`Documento "${file.name}" subido con éxito`);
+        setTimeout(() => {
+          setMessages((prev) => [...prev, response.data]);
+          setIsTyping(false);
+        }, 500);
       } else {
-        setError(response.message || 'Error uploading document');
-        toast.error(response.message || 'Error uploading document');
+        toast.error(response.message || 'Failed to send message');
+        setIsTyping(false);
       }
     } catch (error) {
-      // Remove uploading message
-      setMessages(prevMessages => 
-        prevMessages.filter(msg => msg.id !== uploadingMessage.id)
-      );
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+      setIsTyping(false);
       
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(errorMessage);
-      toast.error(`Error al subir el documento: ${errorMessage}`);
+      // Mark message as error
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.content === content && msg.status === 'sending'
+            ? { ...msg, status: 'error' }
+            : msg
+        )
+      );
     }
   };
   
-  const value = {
-    messages,
-    loading,
-    error,
-    sendMessage,
-    uploadDocument,
-    isTyping
+  // Function to upload a document
+  const uploadDocument = async (file: File) => {
+    try {
+      const pendingMessage: Message = {
+        id: uuidv4(),
+        content: `Uploading ${file.name}...`,
+        timestamp: new Date().toISOString(),
+        role: MessageRole.SYSTEM,
+        status: 'sending'
+      };
+      
+      setMessages((prev) => [...prev, pendingMessage]);
+      
+      const response = await chatApi.uploadDocument(file);
+      
+      if (response.success) {
+        // Remove pending message and add response
+        setMessages((prev) => 
+          prev.filter((msg) => msg.content !== `Uploading ${file.name}...`)
+        );
+        setMessages((prev) => [...prev, response.data]);
+      } else {
+        toast.error(response.message || 'Failed to upload document');
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast.error('Failed to upload document');
+    }
   };
   
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
-};
+  return (
+    <ChatContext.Provider
+      value={{
+        messages,
+        loading,
+        isTyping,
+        sendMessage,
+        uploadDocument
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
 
 export const useChat = () => {
   const context = useContext(ChatContext);
-  
   if (context === undefined) {
     throw new Error('useChat must be used within a ChatProvider');
   }
-  
   return context;
 };
