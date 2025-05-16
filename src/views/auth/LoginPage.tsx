@@ -1,51 +1,78 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { login } from '../../api/auth';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
-interface LoginPageProps {
-  onLoginSuccess: (role: 'admin' | 'client') => void;
+// Define UserRole type matching App.tsx
+type UserRole = 'admin' | 'client';
+
+interface LoginFormData {
+  email: string;
+  password: string;
+  role: UserRole;
+  remember: boolean;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const { t } = useTranslation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'client'>('client');
+interface LoginPageProps {
+  onLoginSuccess: (role: UserRole) => void;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+function LoginPage({ onLoginSuccess }: LoginPageProps) {
+  const { t } = useTranslation();
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: '',
+    password: '',
+    role: 'client',
+    remember: false
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     setError(null);
-    setLoading(true);
 
     try {
-      // For demo purposes, we'll check the hardcoded credentials based on role
-      if (selectedRole === 'admin' && email === 'admin@example.com' && password === 'password') {
-        // Simulate API response delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        // Handle admin login success
-        onLoginSuccess('admin');
-        return;
-      }
+      const data = await login(formData.email, formData.password);
       
-      if (selectedRole === 'client' && email === 'client@example.com' && password === 'password') {
-        // Simulate API response delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        // Handle client login success
-        onLoginSuccess('client');
-        return;
-      }
+      // Cast data to ensure token property access
+      const authToken = data as unknown as { token: string };
+      localStorage.setItem('token', authToken.token);
+      localStorage.setItem('user', JSON.stringify({
+        name: data.name,
+        email: data.email,
+        role: data.role
+      }));
+
+      // Call the callback to update App.tsx state
+      onLoginSuccess(data.role as UserRole);
       
-      // If no matching credentials, show error
-      setError(t('invalidCredentials'));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('invalidCredentials'));
+      if (data.role === 'admin') {
+        navigate('/admin/clients');
+      } else {
+        navigate('/chat');
+      }
+
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error instanceof Error ? error.message : 'Error al iniciar sesión');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value 
+    }));
   };
 
   const togglePasswordVisibility = () => {
@@ -53,194 +80,163 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="w-full min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-soft-background to-accent/20">
-      <div className="w-full max-w-5xl bg-white dark:bg-deep-indigo rounded-2xl overflow-hidden shadow-xl flex flex-col md:flex-row">
-        {/* Left side - Illustration */}
-        <div className="w-full md:w-1/2 bg-primary p-8 text-center flex flex-col justify-between relative">
-          <div className="absolute top-6 left-6 flex items-center">
-            <div className="bg-accent rounded-md p-2 mr-3">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#213448"/>
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-accent">audit-ia</h2>
+    <div className="min-h-screen flex flex-row bg-soft-background dark:bg-deep-indigo">
+      {/* Left sidebar - Brand area */}
+      <div className="hidden md:flex w-1/3 bg-primary flex-col justify-between">
+        <div className="px-8 pt-12">
+          <div className="flex items-center">
+            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-10 w-auto" />
+            <h1 className="text-4xl font-bold text-white ml-2">
+              AUDIT<span className="text-accent">IA</span>
+            </h1>
           </div>
-          
-          <div className="hidden md:flex flex-col items-center justify-center flex-grow">
-            {/* Here you would add an illustration similar to the reference image */}
-            <div className="w-64 h-64 bg-soft-background/20 rounded-full flex items-center justify-center">
-              <div className="text-6xl text-accent">AI</div>
-            </div>
-          </div>
-          
-          <div className="mt-8 text-center">
-            <h3 className="text-2xl font-bold text-white mb-2">{t('ai_audit_platform')}</h3>
-            <p className="text-accent/80">{t('ai_audit_description')}</p>
-          </div>
+          <p className="mt-4 text-accent text-lg">
+            {t('platform_slogan')}
+          </p>
+          <div className="mt-8 h-1 w-16 bg-accent rounded"></div>
         </div>
-        
-        {/* Right side - Login form */}
-        <div className="w-full md:w-1/2 p-8 flex items-center">
-          <div className="w-full max-w-md mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-primary dark:text-white">
-                {t('welcome_back')}
+        <div className="p-8">
+          <p className="text-soft-background text-sm">
+            © {new Date().getFullYear()} AUDIT-IA. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+      
+      {/* Right side - Login form */}
+      <div className="w-full md:w-2/3 flex items-center justify-center p-8">
+        <div className="max-w-md w-full">
+          <div className="md:hidden text-center mb-8">
+            <div className="flex items-center justify-center">
+              <img src="/logo.png" alt="AUDIT-IA Logo" className="h-10 w-auto" />
+              <h1 className="text-3xl font-bold text-primary dark:text-soft-background ml-2">
+                AUDIT<span className="text-accent">IA</span>
               </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
-                {t('login_to_continue')}
-              </p>
             </div>
-            
-            {error && (
-              <div className="mb-6 p-3 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-200 rounded-lg text-sm animate-fade-in">
-                {error}
-              </div>
-            )}
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 mb-2 text-sm font-medium" htmlFor="email">
-                  {t('email')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail size={18} className="text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg
-                            bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="ejemplo@empresa.com"
-                    required
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-gray-700 dark:text-gray-300 mb-2 text-sm font-medium" htmlFor="password">
-                  {t('password')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock size={18} className="text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg
-                            bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    onClick={togglePasswordVisibility}
-                  >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    {t('remember_me')}
-                  </label>
-                </div>
-                
-                <div className="text-sm">
-                  <a href="#" className="font-medium text-primary hover:text-primary/80 dark:text-accent dark:hover:text-accent/80">
-                    {t('forgot_password')}
-                  </a>
-                </div>
-              </div>
-              
-              <div className="flex flex-col space-y-4">
-                <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4 sm:justify-around">
-                  <div className="flex items-center">
-                    <input
-                      id="role-client"
-                      type="radio"
-                      name="role"
-                      value="client"
-                      checked={selectedRole === 'client'}
-                      onChange={() => setSelectedRole('client')}
-                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                      disabled={loading}
-                    />
-                    <label htmlFor="role-client" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      {t('role_client')}
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      id="role-admin"
-                      type="radio"
-                      name="role"
-                      value="admin"
-                      checked={selectedRole === 'admin'}
-                      onChange={() => setSelectedRole('admin')}
-                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                      disabled={loading}
-                    />
-                    <label htmlFor="role-admin" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      {t('role_admin')}
-                    </label>
-                  </div>
-                </div>
-                
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg
-                          transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
-                          disabled:opacity-50 disabled:cursor-not-allowed"
+          </div>
+          
+          <h2 className="text-2xl font-semibold text-primary dark:text-white mb-2">
+            {t('welcome_back')}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            {t('login_to_continue')}
+          </p>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg dark:bg-red-900 dark:text-red-200">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-1" htmlFor="email">
+                {t('email')}
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="ejemplo@empresa.com"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-1" htmlFor="password">
+                {t('password')}
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10"
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                />
+                <button 
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 dark:text-gray-300"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      {t('logging_in')}
-                    </div>
-                  ) : t('login')}
+                  {showPassword ? 
+                    <EyeOffIcon size={18} className="text-gray-500" /> : 
+                    <EyeIcon size={18} className="text-gray-500" />
+                  }
                 </button>
               </div>
-            </form>
-            
-            <div className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-              <p>{t('demo_credentials')}</p>
-              <div className="bg-gray-50 dark:bg-gray-700 px-3 py-2 mt-2 rounded-lg space-y-1 text-left">
-                <p><strong>{t('role_admin')}:</strong> admin@example.com / password</p>
-                <p><strong>{t('role_client')}:</strong> client@example.com / password</p>
+            </div>
+
+            <div>
+              <div className="text-gray-700 dark:text-gray-300 text-sm font-medium mb-1">{t('role_selection')}</div>
+              <div className="flex space-x-6">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="client"
+                    checked={formData.role === 'client'}
+                    onChange={handleChange}
+                    className="form-radio text-primary focus:ring-primary"
+                    disabled={isLoading}
+                  />
+                  <span className="ml-2 text-gray-700 dark:text-gray-300">{t('role_client')}</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="admin"
+                    checked={formData.role === 'admin'}
+                    onChange={handleChange}
+                    className="form-radio text-primary focus:ring-primary"
+                    disabled={isLoading}
+                  />
+                  <span className="ml-2 text-gray-700 dark:text-gray-300">{t('role_admin')}</span>
+                </label>
               </div>
             </div>
-          </div>
+
+            <div className="flex items-center justify-between">
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  checked={formData.remember}
+                  onChange={handleChange}
+                  className="form-checkbox text-primary focus:ring-primary"
+                  disabled={isLoading}
+                />
+                <span className="ml-2 text-gray-700 dark:text-gray-300 text-sm">{t('remember_me')}</span>
+              </label>
+              <a href="#" className="text-sm text-primary dark:text-accent hover:underline">
+                {t('forgot_password')}
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+              disabled={isLoading}
+            >
+              {isLoading ? t('logging_in') : t('login')}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-center text-gray-600 dark:text-gray-400">
+            {t('demo_credentials')} admin@audit.com / cliente@empresa.com (password)
+          </p>
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default LoginPage;

@@ -17,6 +17,7 @@ const resources = {
       search: 'Buscar',
       remember_me: 'Recordarme',
       forgot_password: '¿Olvidó su contraseña?',
+      role_selection: 'Tipo de usuario',
       
       // Roles
       role_admin: 'Administrador',
@@ -56,6 +57,7 @@ const resources = {
       search: 'Search',
       remember_me: 'Remember me',
       forgot_password: 'Forgot password?',
+      role_selection: 'User type',
       
       // Roles
       role_admin: 'Administrator',
