@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { login } from '../../api/auth';
+// Removed unused login import
 
 interface LoginPageProps {
   onLoginSuccess: (role: 'admin' | 'client') => void;

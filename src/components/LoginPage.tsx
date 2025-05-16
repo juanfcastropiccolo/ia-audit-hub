@@ -34,7 +34,9 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
     try {
       const data = await login(formData.email, formData.password);
       
-      localStorage.setItem('token', data.token);
+      // Access token from data directly, not from User type
+      const authToken = data as unknown as { token: string };
+      localStorage.setItem('token', authToken.token);
       localStorage.setItem('user', JSON.stringify({
         name: data.name,
         email: data.email,
@@ -191,4 +193,4 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   );
 }
 
-export default LoginPage; 
+export default LoginPage;

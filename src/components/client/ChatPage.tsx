@@ -15,13 +15,6 @@ interface Message {
   model?: string; // Adding model info to display which model generated the response
 }
 
-// Define the expected response structure from /api/assistant
-interface AssistantApiResponse {
-  message: string;
-  client_id: string; // Assuming backend might return this
-  session_id: string; // Assuming backend might return this
-}
-
 function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -230,4 +223,4 @@ function ChatPage() {
   );
 }
 
-export default ChatPage; 
+export default ChatPage;

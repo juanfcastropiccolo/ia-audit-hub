@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+
+import { type ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
@@ -27,4 +28,4 @@ function AdminLayout({ children }: AdminLayoutProps) {
   );
 }
 
-export default AdminLayout; 
+export default AdminLayout;
