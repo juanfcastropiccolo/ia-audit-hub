@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Guardar temporalmente los archivos de configuración
