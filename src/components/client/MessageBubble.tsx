@@ -1,6 +1,3 @@
-
-import React from 'react';
-
 interface MessageBubbleProps {
   sender: string;
   text: string;

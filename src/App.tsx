@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import AdminLayout from './layouts/AdminLayout';
@@ -110,35 +109,23 @@ function AppRoutes() {
       
       {/* Client chat route (requires client role) */}
       <Route path="/chat" element={
-        <RequireAuth allowedRole="client">
-          <ClientLayout>
-            <ChatProvider>
-              <ChatPage />
-            </ChatProvider>
-          </ClientLayout>
-        </RequireAuth>
+        !user ? <Navigate to="/login" replace /> : (
+          <RequireAuth allowedRole="client">
+            <ClientLayout>
+              <ChatProvider>
+                <ChatPage />
+              </ChatProvider>
+            </ClientLayout>
+          </RequireAuth>
+        )
       } />
       
-      {/* Default redirect based on auth status and role */}
-      <Route path="/" element={
-        <Navigate to={user 
-          ? (userRole === 'admin' ? '/admin/clients' : '/chat') 
-          : '/login'} 
-        />
-      } />
+      {/* Default redirect to login, login page will handle further redirection if authenticated */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
       
-      {/* Catch-all route for 404 */}
+      {/* Catch-all route for 404 also redirects to login */}
       <Route path="*" element={
-        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">Página no encontrada</h1>
-          <p className="text-gray-600 mb-8 dark:text-gray-300">Lo sentimos, la página que busca no existe.</p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="px-6 py-2 bg-accent text-primary rounded-lg hover:bg-accent/80"
-          >
-            Volver al inicio
-          </button>
-        </div>
+        <Navigate to="/login" replace />
       } />
     </Routes>
   );

@@ -1,4 +1,3 @@
-
 import { defineConfig, type ConfigEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { componentTagger } from 'lovable-tagger';
@@ -22,7 +21,7 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   },
   server: {
     host: '::',
-    port: 8080,
+    port: 5173,
     open: true,
   },
   build: {
@@ -52,7 +51,13 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   optimizeDeps: {
     esbuildOptions: {
       tsconfig: 'tsconfig.local.json'
-    }
+    },
+    exclude: [
+      '@supabase/supabase-js',
+      'socket.io-client',
+      'lucide-react',
+      'lovable-tagger'
+    ]
   },
   // Add environment variables for development mode
   define: {

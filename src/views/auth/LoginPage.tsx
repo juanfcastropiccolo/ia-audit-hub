@@ -1,9 +1,9 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
+import { getSupabaseStorageUrl } from '../../lib/supabaseClient';
 
 type UserRole = 'admin' | 'client';
 
@@ -24,6 +24,9 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  
+  // Get logo URL from Supabase
+  const logoUrl = getSupabaseStorageUrl('pictures/trimmed_logo.png');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +85,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="fade-in">
             <div className="flex items-center">
-              <img src="https://qaxkjvkgitxwqcyaakds.supabase.co/storage/v1/object/public/pictures/trimmed_logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+              <img src={logoUrl} alt="AUDIT-IA Logo" className="h-16 w-auto" />
             </div>
           </div>
           
@@ -109,7 +112,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
           <div className="text-center mb-8 md:hidden">
-            <img src="https://qaxkjvkgitxwqcyaakds.supabase.co/storage/v1/object/public/pictures/trimmed_logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
+            <img src={logoUrl} alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <div className="mb-8">

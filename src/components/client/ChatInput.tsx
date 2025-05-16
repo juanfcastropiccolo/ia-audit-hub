@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 
@@ -8,6 +7,7 @@ interface ChatInputProps {
   sendMessage: () => void;
   handleUploadClick: () => void;
   isLoading: boolean;
+  onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
 function ChatInput({ 
@@ -15,7 +15,8 @@ function ChatInput({
   setCurrentMessage, 
   sendMessage, 
   handleUploadClick, 
-  isLoading 
+  isLoading,
+  onKeyDown
 }: ChatInputProps) {
   const [rows, setRows] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -40,7 +41,14 @@ function ChatInput({
     setCurrentMessage(e.target.value);
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDownInternal = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // If an external handler is provided, use it
+    if (onKeyDown) {
+      onKeyDown(e);
+      return;
+    }
+    
+    // Otherwise use the default implementation
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (currentMessage.trim()) {
@@ -89,7 +97,7 @@ function ChatInput({
             ref={textareaRef}
             value={currentMessage}
             onChange={handleChange}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleKeyDownInternal}
             placeholder="Escribe tu mensaje..."
             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-accent bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none overflow-hidden"
             rows={rows}
