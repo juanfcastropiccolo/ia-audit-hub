@@ -68,24 +68,9 @@ html, body, #root {
   text-align: left;
 }
 
-/* Chat message styles */
-.chat-messages-container {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-secondary) transparent;
-}
-
-.chat-messages-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-messages-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-messages-container::-webkit-scrollbar-thumb {
-  background-color: var(--color-secondary);
-  border-radius: 20px;
-  border: 3px solid transparent;
+/* Glassmorphism effect */
+.glass {
+  @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg;
 }
 
 /* Animation styles */
@@ -104,104 +89,10 @@ html, body, #root {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Glassmorphism effect */
-.glass {
-  @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg;
-}
-
-/* Reusable components */
 .card {
   @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
 }
 
 .btn-primary {
   @apply bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-md transition-colors;
-}
-
-.btn-secondary {
-  @apply bg-secondary hover:bg-secondary/90 text-white px-3 py-2 rounded-md transition-colors;
-}
-
-.btn-accent {
-  @apply bg-accent hover:bg-accent/90 text-primary px-3 py-2 rounded-md transition-colors;
-}
-
-.btn-outline {
-  @apply border border-primary text-primary hover:bg-primary hover:text-white px-3 py-2 rounded-md transition-colors;
-}
-
-/* Dark mode toggle animation */
-.toggle-switch {
-  @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none;
-}
-
-.toggle-switch:focus {
-  @apply ring-2 ring-offset-2 ring-primary;
-}
-
-.toggle-switch[data-state="checked"] {
-  @apply bg-primary;
-}
-
-.toggle-switch[data-state="unchecked"] {
-  @apply bg-gray-200 dark:bg-gray-700;
-}
-
-.toggle-thumb {
-  @apply pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform;
-}
-
-.toggle-switch[data-state="checked"] .toggle-thumb {
-  @apply translate-x-5;
-}
-
-.toggle-switch[data-state="unchecked"] .toggle-thumb {
-  @apply translate-x-0;
-}
-
-/* Background colors specific to our color scheme */
-.bg-deep-indigo {
-  background-color: var(--color-deep-indigo);
-}
-
-.bg-primary {
-  background-color: var(--color-primary);
-}
-
-.bg-secondary {
-  background-color: var(--color-secondary);
-}
-
-.bg-accent {
-  background-color: var(--color-accent);
-}
-
-/* Text colors specific to our color scheme */
-.text-primary {
-  color: var(--color-primary);
-}
-
-.text-secondary {
-  color: var(--color-secondary);
-}
-
-.text-accent {
-  color: var(--color-accent);
-}
-
-.text-purple-tint {
-  color: var(--color-purple-tint);
 }

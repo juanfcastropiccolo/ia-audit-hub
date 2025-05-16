@@ -31,8 +31,8 @@ function ThemeToggle() {
     <button
       type="button"
       className="p-2 rounded-full bg-white/10 backdrop-blur-sm 
-              hover:bg-primary/20 dark:hover:bg-gray-700 
-              focus:outline-none transition-all duration-300
+              hover:bg-accent/20 dark:hover:bg-gray-700 
+              focus:outline-none focus:ring-2 focus:ring-white/20 transition-all duration-300
               shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
       onClick={toggleTheme}
       aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}

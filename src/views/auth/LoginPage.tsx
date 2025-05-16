@@ -89,6 +89,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="fade-in">
             <div className="flex items-center">
               <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+              <span className="text-xs text-emerald-400 ml-2">tailwind-ok</span>
             </div>
           </div>
           
@@ -116,6 +117,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
           <div className="text-center mb-8 md:hidden">
             <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
+            <span className="text-xs text-emerald-400">tailwind-ok</span>
           </div>
           
           <div className="mb-8">
