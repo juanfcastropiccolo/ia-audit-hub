@@ -78,43 +78,42 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className="flex min-h-screen w-full overflow-hidden">
-      {/* Left side - Illustration */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-accent to-primary flex-col justify-between p-12 relative overflow-hidden">
+      {/* Left side - Illustration with logo and text */}
+      <div className="hidden md:flex md:w-1/2 bg-deep-indigo flex-col justify-between p-12 relative overflow-hidden">
         <div className="z-10">
-          <img src="/logo.png" alt="AUDIT-IA Logo" className="h-10 w-auto mb-6" />
+          <div className="flex items-center">
+            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+          </div>
         </div>
         
         <div className="z-10 flex flex-col space-y-6">
           <h1 className="text-4xl font-bold text-white">
             {t('ai_audit_platform')}
           </h1>
-          <p className="text-xl text-soft-background/90 max-w-md">
+          <p className="text-xl text-gray-300 max-w-md">
             {t('ai_audit_description')}
           </p>
-          <div className="h-1 w-20 bg-soft-background rounded"></div>
+          <div className="h-1 w-20 bg-accent rounded"></div>
         </div>
         
-        <div className="z-10 text-soft-background/80 text-sm">
+        <div className="z-10 text-gray-400 text-sm">
           © {new Date().getFullYear()} AUDIT-IA
         </div>
         
         {/* Background decoration elements */}
-        <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full bg-secondary/20 blur-3xl"></div>
-        <div className="absolute bottom-[-50px] right-[-50px] w-[300px] h-[300px] rounded-full bg-accent/20 blur-3xl"></div>
+        <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full bg-accent/10 blur-3xl"></div>
+        <div className="absolute bottom-[-50px] right-[-50px] w-[300px] h-[300px] rounded-full bg-purple-tint/20 blur-3xl"></div>
       </div>
       
       {/* Right side - Login form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-white dark:bg-deep-indigo">
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-white dark:bg-gray-900">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 md:hidden">
-            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-12 w-auto mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-primary dark:text-white">
-              AUDIT-IA
-            </h1>
+            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">
               {t('welcome_back')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-2">
@@ -130,7 +129,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="email">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">
                 {t('email')}
               </label>
               <div className="relative">
@@ -144,7 +143,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
                   placeholder="nombre@empresa.com"
                   disabled={isLoading}
                 />
@@ -152,11 +151,11 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="password">
                   {t('password')}
                 </label>
-                <a href="#" className="text-xs text-primary dark:text-accent hover:underline">
+                <a href="#" className="text-xs text-primary hover:text-primary/80 dark:text-accent dark:hover:text-accent/80 hover:underline">
                   {t('forgot_password')}
                 </a>
               </div>
@@ -171,7 +170,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
                   placeholder="••••••••"
                   disabled={isLoading}
                 />
@@ -191,7 +190,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <div className="pt-2">
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('role_selection')}</div>
               <div className="flex space-x-4">
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer">
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 transition-all hover:border-primary dark:hover:border-accent">
                   <input
                     type="radio"
                     name="role"
@@ -203,7 +202,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   />
                   <span className="text-gray-700 dark:text-gray-300">{t('role_client')}</span>
                 </label>
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer">
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 transition-all hover:border-primary dark:hover:border-accent">
                   <input
                     type="radio"
                     name="role"

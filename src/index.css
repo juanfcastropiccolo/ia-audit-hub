@@ -43,13 +43,12 @@
     --color-shadow: rgba(0, 0, 0, 0.4);
   }
 
+  /* Removed the problematic body styles that center content */
   body {
     margin: 0;
-    display: flex;
-    place-items: center;
     min-width: 320px;
     min-height: 100vh;
-    background-color: var(--color-soft-background);
+    background-color: var(--color-bg-secondary);
   }
 }
 
@@ -57,7 +56,6 @@
 html, body, #root {
   height: 100%;
   width: 100%;
-  overflow: hidden;
 }
 
 #root {
