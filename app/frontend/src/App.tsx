@@ -8,7 +8,7 @@ import ClientsPage from './views/admin/ClientsPage';
 import LogsPage from './views/admin/LogsPage';
 import ChatPage from './views/client/ChatPage';
 import LoginPage from './views/auth/LoginPage';
-import { isAuthenticated, getUser, logout } from './api/auth';
+import { isAuthenticated, getUser } from './api/auth';
 import './App.css';
 
 // Define a more specific type for user roles
