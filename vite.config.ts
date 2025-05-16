@@ -1,7 +1,6 @@
 
 import { defineConfig, type ConfigEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 import { componentTagger } from 'lovable-tagger';
 import path from 'path';
 
