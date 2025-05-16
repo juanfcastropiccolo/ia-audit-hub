@@ -1,10 +1,11 @@
 
-// Simple auth service (to be replaced with real API calls)
+// Auth service (to be replaced with real API calls)
 
 export interface User {
   email: string;
   name: string;
   role: 'admin' | 'client';
+  token: string;
 }
 
 export const login = async (email: string, password: string): Promise<User> => {
@@ -12,23 +13,19 @@ export const login = async (email: string, password: string): Promise<User> => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (email === 'admin@example.com' && password === 'password') {
-        const user = { 
+        resolve({ 
           email: 'admin@example.com', 
           name: 'Admin User', 
-          role: 'admin' as const 
-        };
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('token', 'mock-jwt-token-for-admin');
-        resolve(user);
+          role: 'admin' as const,
+          token: 'mock-jwt-token-for-admin' 
+        });
       } else if (email === 'client@example.com' && password === 'password') {
-        const user = { 
+        resolve({ 
           email: 'client@example.com', 
           name: 'Client User', 
-          role: 'client' as const 
-        };
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('token', 'mock-jwt-token-for-client');
-        resolve(user);
+          role: 'client' as const,
+          token: 'mock-jwt-token-for-client' 
+        });
       } else {
         reject(new Error('Invalid credentials'));
       }

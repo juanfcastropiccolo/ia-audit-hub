@@ -26,7 +26,6 @@ const resources = {
       // Status and messages
       logging_in: 'Iniciando sesión...',
       invalidCredentials: 'Credenciales inválidas',
-      demo_credentials: 'Credenciales de demostración:',
       
       // Navigation and titles
       admin_dashboard: 'Panel de Administración',
@@ -41,7 +40,7 @@ const resources = {
       // Platform info
       platform_slogan: 'Plataforma inteligente de auditoría',
       ai_audit_platform: 'AUDIT-IA: Auditoría Inteligente',
-      ai_audit_description: 'Plataforma avanzada de auditoría potenciada por IA'
+      ai_audit_description: 'Plataforma avanzada de auditoría potenciada por inteligencia artificial'
     }
   },
   en: {
@@ -66,7 +65,6 @@ const resources = {
       // Status and messages
       logging_in: 'Logging in...',
       invalidCredentials: 'Invalid credentials',
-      demo_credentials: 'Demo credentials:',
       
       // Navigation and titles
       admin_dashboard: 'Admin Dashboard',
