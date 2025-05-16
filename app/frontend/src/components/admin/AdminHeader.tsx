@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { logout } from '../../api/auth';
+import { useState, useEffect } from 'react';
+import ThemeToggle from '../common/ThemeToggle';
 
 interface User {
   name: string;
@@ -8,88 +7,105 @@ interface User {
 }
 
 interface AdminHeaderProps {
-  user: User;
+  user?: User;
 }
 
 function AdminHeader({ user }: AdminHeaderProps) {
-  const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const handleLogout = () => {
-    // Use our auth service to log out
-    logout();
-    navigate('/login');
-  };
-
-  const toggleDarkMode = () => {
-    // Toggle dark mode by adding/removing the 'dark' class to document.documentElement (html)
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  
+  useEffect(() => {
+    // If user is passed as prop, use it
+    if (user) {
+      setCurrentUser(user);
+      return;
     }
-    setIsDarkMode(!isDarkMode);
-  };
-
+    
+    // Otherwise, try to get from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setCurrentUser({
+          name: userData.name,
+          role: userData.role
+        });
+      } catch (e) {
+        console.error('Failed to parse user data from localStorage:', e);
+      }
+    }
+  }, [user]);
+  
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-white border-b dark:bg-gray-800 dark:border-gray-700"> 
-      <div>
-        <h1 className="text-xl font-semibold text-deepIndigo dark:text-gray-100">Panel de Auditoría IA</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-300">Bienvenido, {user?.name} ({user?.role})</p>
-      </div>
-      <div className="flex items-center space-x-4">
-        {/* Toggle claro/oscuro */}
-        <button 
-          onClick={toggleDarkMode} 
-          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-          title={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-        >
-          {isDarkMode ? (
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="w-5 h-5 text-yellow-400" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-          ) : (
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="w-5 h-5 text-deepIndigo" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-            </svg>
+    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-6 py-3">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Panel de Administración</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Auditoría IA</p>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <ThemeToggle />
+          
+          {currentUser && (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center">
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-sm font-medium text-gray-800 dark:text-white">{currentUser.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{currentUser.role}</p>
+                </div>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  className="w-4 h-4 text-gray-600 dark:text-gray-400"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-10">
+                  <a 
+                    href="#profile" 
+                    className="block px-4 py-2 text-sm text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Mi perfil
+                  </a>
+                  <a 
+                    href="#settings" 
+                    className="block px-4 py-2 text-sm text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Configuración
+                  </a>
+                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                  <button 
+                    onClick={() => {
+                      // Handle logout logic here
+                      window.location.href = '/login';
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-        </button>
-        {/* Botón logout */}
-        <button 
-          onClick={handleLogout} 
-          className="bg-purpleTint text-white px-4 py-2 rounded-2xl shadow hover:bg-purple-700 dark:bg-deepIndigo dark:hover:bg-indigo-900"
-        >
-          Cerrar sesión
-        </button>
+        </div>
       </div>
     </header>
   );
 }
 
-export default AdminHeader; 
+export default AdminHeader;

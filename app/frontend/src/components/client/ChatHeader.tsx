@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import type { LLMModel } from '../../api/apiService';
 
 interface ChatHeaderProps {
@@ -12,33 +13,84 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onModelChange,
   userInfo
 }) => {
+  const [showModelSelector, setShowModelSelector] = useState(false);
   const clientName = userInfo?.name || 'Cliente Demo';
   const auditStatus = 'En Progreso';
 
+  const handleModelClick = () => {
+    setShowModelSelector(!showModelSelector);
+  };
+
+  const handleModelSelect = (model: LLMModel) => {
+    onModelChange(model);
+    setShowModelSelector(false);
+  };
+
   return (
-    <div className="chat-header">
-      <div className="flex flex-col md:flex-row justify-between w-full">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-2 md:space-y-0">
         <div>
           <h1 className="text-xl font-bold text-gray-800 dark:text-white">Chat de Auditoría</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">Cliente: {clientName}</p>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">Estado: {auditStatus}</p>
+          <div className="flex flex-wrap items-center mt-1 text-sm text-gray-600 dark:text-gray-300 space-x-3">
+            <p>Cliente: {clientName}</p>
+            <div className="flex items-center">
+              <span>Estado: </span>
+              <span className="flex items-center ml-1">
+                <span className="w-2 h-2 mr-1 bg-green-500 rounded-full"></span>
+                {auditStatus}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="mt-3 md:mt-0 flex flex-col space-y-2">
-          <div className="text-sm text-gray-600 dark:text-gray-400">Modelo LLM:</div>
-          <select 
-            className="model-select"
-            value={selectedModel}
-            onChange={(e) => onModelChange(e.target.value as LLMModel)}
+        
+        <div className="relative">
+          <button 
+            onClick={handleModelClick}
+            className="flex items-center px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            <option value="gemini">Gemini (Google)</option>
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="gpt4">GPT-4 (OpenAI)</option>
-            <option value="mock">Mock (Prueba)</option>
-          </select>
+            <span className="mr-2">Modelo: {getModelDisplayName(selectedModel)}</span>
+            <svg
+              className="w-4 h-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          
+          {showModelSelector && (
+            <div className="absolute right-0 mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden z-10">
+              {['mock', 'gemini', 'claude', 'gpt4'].map((model) => (
+                <button
+                  key={model}
+                  onClick={() => handleModelSelect(model as LLMModel)}
+                  className={`block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedModel === model ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                >
+                  {getModelDisplayName(model as LLMModel)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default ChatHeader; 
+// Helper function to get a user-friendly name for the model
+const getModelDisplayName = (model: LLMModel): string => {
+  switch (model) {
+    case 'gemini': return 'Gemini (Google)';
+    case 'claude': return 'Claude (Anthropic)';
+    case 'gpt4': return 'GPT-4 (OpenAI)';
+    case 'mock': return 'Mock (Simulación)';
+    default: return model;
+  }
+};
+
+export default ChatHeader;
