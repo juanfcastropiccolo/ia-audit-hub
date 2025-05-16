@@ -40,7 +40,7 @@ const resources = {
       // Platform info
       platform_slogan: 'Plataforma inteligente de auditoría',
       ai_audit_platform: 'AUDIT-IA: Auditoría Inteligente',
-      ai_audit_description: 'Plataforma avanzada de auditoría potenciada por inteligencia artificial'
+      ai_audit_description: 'Plataforma avanzada de auditoría potenciada por Agentes IA'
     }
   },
   en: {
@@ -79,7 +79,7 @@ const resources = {
       // Platform info
       platform_slogan: 'Intelligent audit platform',
       ai_audit_platform: 'AUDIT-IA: Intelligent Auditing',
-      ai_audit_description: 'Advanced AI-powered auditing platform'
+      ai_audit_description: 'Advanced AI-powered auditing platform with AI Agents'
     }
   }
 };

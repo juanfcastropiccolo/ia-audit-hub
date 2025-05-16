@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -87,7 +88,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="fade-in">
             <div className="flex items-center">
-              <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+              <img src="https://qaxkjvkgitxwqcyaakds.supabase.co/storage/v1/object/public/pictures/trimmed_logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
             </div>
           </div>
           
@@ -114,7 +115,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
           <div className="text-center mb-8 md:hidden">
-            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
+            <img src="https://qaxkjvkgitxwqcyaakds.supabase.co/storage/v1/object/public/pictures/trimmed_logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
           </div>
           
           <div className="mb-8">
@@ -274,12 +275,6 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </>
               ) : t('login')}
             </button>
-            
-            <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
-              <p>Demo credentials:</p>
-              <p className="mt-1">Admin: admin@example.com / password</p>
-              <p>Client: client@example.com / password</p>
-            </div>
           </form>
         </div>
       </div>
