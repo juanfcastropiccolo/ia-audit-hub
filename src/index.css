@@ -1,7 +1,6 @@
-
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   :root {
@@ -17,14 +16,13 @@
   
   /* Light theme colors */
   :root {
-    --color-primary: #213448;
-    --color-secondary: #547792;
-    --color-accent: #94B4C1;
-    --color-soft-background: #ECEFCA;
-    --color-neutral-gray: #8E9196;
-    --color-deep-indigo: #1A1F2C;
-    --color-purple-tint: #9b87f5;
-    --color-lavender-mist: #E5DEFF;
+    --color-primary: #493D9E;
+    --color-secondary: #B2A5FF;
+    --color-accent: #FFF2AF;
+    --color-lavender: #DAD2FF;
+    --color-purple: #B2A5FF;
+    --color-indigo: #493D9E;
+    --color-soft-yellow: #FFF2AF;
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f8fafc;
     --color-text-primary: #1e293b;
@@ -40,7 +38,10 @@
     --color-bg-accent: #312e81;
     --color-text-primary: #f1f5f9;
     --color-text-secondary: #94a3b8;
-    --color-accent: #94B4C1;
+    --color-primary: #493D9E;
+    --color-secondary: #B2A5FF;
+    --color-accent: #FFF2AF;
+    --color-lavender: #DAD2FF;
     --color-border: #334155;
     --color-shadow: rgba(0, 0, 0, 0.4);
   }
@@ -73,6 +74,26 @@ html, body, #root {
   @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg;
 }
 
+/* Custom scrollbar */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+}
+
 /* Animation styles */
 @keyframes fadeIn {
   from {
@@ -89,10 +110,28 @@ html, body, #root {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-.card {
-  @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
-}
-
-.btn-primary {
-  @apply bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-md transition-colors;
+/* Common component styles */
+@layer components {
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/90 text-primary px-4 py-2 rounded-md transition-colors;
+  }
+  
+  .btn-accent {
+    @apply bg-accent hover:bg-accent/90 text-primary px-4 py-2 rounded-md transition-colors;
+  }
+  
+  .form-input {
+    @apply px-4 py-2 w-full border border-gray-300 rounded-lg 
+      focus:ring-2 focus:ring-primary focus:border-primary 
+      dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-purple
+      transition-colors duration-200;
+  }
 }

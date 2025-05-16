@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -79,17 +78,16 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   return (
     <div className="flex min-h-screen w-full overflow-hidden">
       {/* Left side - Brand panel with gradient */}
-      <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-br from-deep-indigo via-primary to-secondary">
+      <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo via-purple to-lavender">
         <div className="absolute inset-0">
-          <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple-tint/20 blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-3xl"></div>
+          <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple/20 blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-softYellow/20 blur-3xl"></div>
         </div>
         
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="fade-in">
             <div className="flex items-center">
               <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
-              <span className="text-xs text-emerald-400 ml-2">tailwind-ok</span>
             </div>
           </div>
           
@@ -97,13 +95,13 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <h1 className="text-4xl font-bold text-white">
               {t('ai_audit_platform')}
             </h1>
-            <p className="text-xl text-gray-300 max-w-md">
+            <p className="text-xl text-gray-100 max-w-md">
               {t('ai_audit_description')}
             </p>
-            <div className="h-1 w-20 bg-accent rounded"></div>
+            <div className="h-1 w-20 bg-softYellow rounded"></div>
           </div>
           
-          <div className="z-10 text-gray-400 text-sm fade-in">
+          <div className="z-10 text-gray-200 text-sm fade-in">
             © {new Date().getFullYear()} AUDIT-IA
           </div>
         </div>
@@ -117,11 +115,10 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
           <div className="text-center mb-8 md:hidden">
             <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
-            <span className="text-xs text-emerald-400">tailwind-ok</span>
           </div>
           
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">
+            <h2 className="text-3xl font-bold text-indigo dark:text-lavender">
               {t('welcome_back')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-2">
@@ -130,7 +127,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
           
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 rounded animate-fade-in">
+            <div className="mb-6 p-4 bg-softYellow/20 border-l-4 border-softYellow text-indigo dark:bg-softYellow/10 dark:text-softYellow rounded animate-fade-in">
               <p>{error}</p>
             </div>
           )}
@@ -142,7 +139,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MailIcon size={18} className="text-gray-400 group-hover:text-primary transition-colors duration-200" />
+                  <MailIcon size={18} className="text-gray-400 group-hover:text-indigo transition-colors duration-200" />
                 </div>
                 <input
                   id="email"
@@ -152,8 +149,8 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   value={formData.email}
                   onChange={handleChange}
                   className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
-                          focus:ring-2 focus:ring-primary focus:border-primary 
-                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-accent
+                          focus:ring-2 focus:ring-indigo focus:border-indigo 
+                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
                   placeholder="nombre@empresa.com"
                   disabled={isLoading}
@@ -166,13 +163,13 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="password">
                   {t('password')}
                 </label>
-                <a href="#" className="text-xs text-primary hover:text-primary/80 dark:text-accent dark:hover:text-accent/80 hover:underline transition-colors duration-200">
+                <a href="#" className="text-xs text-indigo hover:text-indigo/80 dark:text-purple dark:hover:text-purple/80 hover:underline transition-colors duration-200">
                   {t('forgot_password')}
                 </a>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <LockIcon size={18} className="text-gray-400 group-hover:text-primary transition-colors duration-200" />
+                  <LockIcon size={18} className="text-gray-400 group-hover:text-indigo transition-colors duration-200" />
                 </div>
                 <input
                   id="password"
@@ -182,8 +179,8 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   value={formData.password}
                   onChange={handleChange}
                   className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
-                          focus:ring-2 focus:ring-primary focus:border-primary 
-                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-accent
+                          focus:ring-2 focus:ring-indigo focus:border-indigo 
+                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
                   placeholder="••••••••"
                   disabled={isLoading}
@@ -205,27 +202,27 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('role_selection')}</div>
               <div className="flex space-x-4">
                 <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
-                              transition-all hover:border-primary dark:hover:border-accent hover:shadow-md">
+                              transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
                     name="role"
                     value="client"
                     checked={formData.role === 'client'}
                     onChange={handleChange}
-                    className="form-radio text-primary focus:ring-primary mr-2"
+                    className="form-radio text-indigo focus:ring-indigo mr-2"
                     disabled={isLoading}
                   />
                   <span className="text-gray-700 dark:text-gray-300">{t('role_client')}</span>
                 </label>
                 <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
-                              transition-all hover:border-primary dark:hover:border-accent hover:shadow-md">
+                              transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
                     name="role"
                     value="admin"
                     checked={formData.role === 'admin'}
                     onChange={handleChange}
-                    className="form-radio text-primary focus:ring-primary mr-2"
+                    className="form-radio text-indigo focus:ring-indigo mr-2"
                     disabled={isLoading}
                   />
                   <span className="text-gray-700 dark:text-gray-300">{t('role_admin')}</span>
@@ -261,9 +258,9 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <button
               type="submit"
               className="w-full flex justify-center items-center py-3 px-4 
-                      bg-primary hover:bg-primary/90 text-white font-medium rounded-lg 
+                      bg-indigo hover:bg-indigo/90 text-white font-medium rounded-lg 
                       shadow transition duration-150 ease-in-out 
-                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary 
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo 
                       disabled:opacity-50 hover:shadow-lg transform hover:-translate-y-0.5"
               disabled={isLoading}
             >
@@ -277,6 +274,12 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </>
               ) : t('login')}
             </button>
+            
+            <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+              <p>Demo credentials:</p>
+              <p className="mt-1">Admin: admin@example.com / password</p>
+              <p>Client: client@example.com / password</p>
+            </div>
           </form>
         </div>
       </div>
