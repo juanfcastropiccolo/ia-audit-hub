@@ -1,4 +1,5 @@
 
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./index.html",
@@ -12,7 +13,9 @@ module.exports = {
         accent: '#94B4C1',
         'soft-background': '#ECEFCA',
         'neutral-gray': '#8E9196',
-        'dark-purple': '#1A1F2C',
+        'deep-indigo': '#1A1F2C',
+        'purple-tint': '#9b87f5',
+        'lavender-mist': '#E5DEFF',
       },
       borderRadius: {
         '2xl': '1rem',
@@ -48,4 +51,4 @@ module.exports = {
   },
   darkMode: 'class', // Enables dark mode via class 'dark'
   plugins: [],
-} 
+}

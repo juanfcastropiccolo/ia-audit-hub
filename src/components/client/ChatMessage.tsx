@@ -1,17 +1,6 @@
 
 import { format } from 'date-fns';
-
-interface ChatMessageProps {
-  message: {
-    id: string;
-    text: string;
-    role: 'user' | 'client' | 'assistant';
-    timestamp: Date | string;
-    fileUrl?: string;
-    fileName?: string;
-    model?: string;
-  };
-}
+import type { ChatMessageProps } from '../../types/chat';
 
 function ChatMessage({ message }: ChatMessageProps) {
   const isClient = message.role === "user" || message.role === "client";
@@ -20,7 +9,7 @@ function ChatMessage({ message }: ChatMessageProps) {
   if (message.model === 'system') {
     return (
       <div className="py-2 px-4 my-2">
-        <div className="bg-gray-100 dark:bg-gray-800 py-2 px-4 text-center text-sm text-gray-600 dark:text-gray-400 rounded-lg">
+        <div className="bg-gray-100 dark:bg-gray-800 py-2 px-4 text-center text-sm text-gray-600 dark:text-gray-400 rounded-lg animate-fade-in">
           {message.text}
         </div>
       </div>
@@ -72,7 +61,7 @@ function ChatMessage({ message }: ChatMessageProps) {
   };
 
   return (
-    <div className={`flex ${isClient ? 'justify-end' : 'justify-start'} my-3`}>
+    <div className={`flex ${isClient ? 'justify-end' : 'justify-start'} my-3 animate-fade-in`}>
       <div className={`max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl px-4 py-2 rounded-2xl shadow-sm ${messageClass}`}>
         {!isClient && message.role === 'assistant' && (
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Asistente</div>

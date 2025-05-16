@@ -2,19 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../../components/client/ChatHeader';
-import ChatMessage from '../../components/client/ChatMessage';
+import ChatMessageList from '../../components/client/ChatMessageList';
 import ChatInput from '../../components/client/ChatInput';
 import { sendMessageToLLM, uploadFileForAnalysis, type LLMModel } from '../../api/apiService';
-
-interface Message {
-  id: string;
-  text: string;
-  role: 'user' | 'client' | 'assistant';
-  timestamp: Date;
-  fileUrl?: string;
-  fileName?: string;
-  model?: string;
-}
+import type { Message } from '../../types/chat';
 
 function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -182,28 +173,26 @@ function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-soft-background dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-soft-background dark:bg-deep-indigo">
       <ChatHeader 
         selectedModel={selectedModel} 
         onModelChange={handleModelChange} 
         userInfo={userInfo}
       />
       
-      <div className="flex-1 overflow-y-auto px-4 py-4 chat-messages-container">
-        {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
-        <div ref={messagesEndRef} />
+      <ChatMessageList 
+        messages={messages} 
+        messagesEndRef={messagesEndRef}
+      />
         
-        {/* Hidden file input */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt"
-        />
-      </div>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt"
+      />
       
       <ChatInput 
         currentMessage={currentMessage}

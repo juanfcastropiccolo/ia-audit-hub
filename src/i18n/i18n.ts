@@ -2,84 +2,85 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-// Recursos de traducción
+// Define translation resources
 const resources = {
   es: {
     translation: {
-      // Textos generales
-      welcome: 'Bienvenido a Auditoría IA',
+      // Common
+      welcome: 'Bienvenido a AUDIT-IA',
       login: 'Iniciar sesión',
       logout: 'Cerrar sesión',
       email: 'Correo electrónico',
       password: 'Contraseña',
-      
-      // Mensajes de error
-      required: 'Este campo es obligatorio',
-      invalidEmail: 'Por favor, introduce un correo válido',
-      invalidCredentials: 'Credenciales inválidas',
+      search: 'Buscar',
       
       // Roles
-      client: 'Cliente',
-      admin: 'Administrador',
+      role_admin: 'Administrador',
+      role_client: 'Cliente',
       
-      // Chat
-      sendMessage: 'Enviar mensaje',
-      uploadFile: 'Subir archivo',
-      typing: 'Escribiendo...',
+      // Status and messages
+      logging_in: 'Iniciando sesión...',
+      invalidCredentials: 'Credenciales inválidas',
+      demo_credentials: 'Credenciales de demostración:',
       
-      // Admin dashboard
+      // Navigation and titles
+      admin_dashboard: 'Panel de Administración',
       clients: 'Clientes',
       logs: 'Registros',
-      noClients: 'No hay clientes para mostrar',
-      noLogs: 'No hay registros para mostrar',
-      search: 'Buscar...'
+      
+      // Chat related
+      send: 'Enviar',
+      typing_message: 'Escriba su mensaje...',
+      upload_file: 'Subir archivo',
+      
+      // Platform info
+      platform_slogan: 'Plataforma inteligente de auditoría'
     }
   },
   en: {
     translation: {
-      // General texts
-      welcome: 'Welcome to Audit IA',
+      // Common
+      welcome: 'Welcome to AUDIT-IA',
       login: 'Login',
       logout: 'Logout',
       email: 'Email',
       password: 'Password',
-      
-      // Error messages
-      required: 'This field is required',
-      invalidEmail: 'Please enter a valid email',
-      invalidCredentials: 'Invalid credentials',
+      search: 'Search',
       
       // Roles
-      client: 'Client',
-      admin: 'Administrator',
+      role_admin: 'Administrator',
+      role_client: 'Client',
       
-      // Chat
-      sendMessage: 'Send message',
-      uploadFile: 'Upload file',
-      typing: 'Typing...',
+      // Status and messages
+      logging_in: 'Logging in...',
+      invalidCredentials: 'Invalid credentials',
+      demo_credentials: 'Demo credentials:',
       
-      // Admin dashboard
+      // Navigation and titles
+      admin_dashboard: 'Admin Dashboard',
       clients: 'Clients',
       logs: 'Logs',
-      noClients: 'No clients to display',
-      noLogs: 'No logs to display',
-      search: 'Search...'
+      
+      // Chat related
+      send: 'Send',
+      typing_message: 'Type your message...',
+      upload_file: 'Upload file',
+      
+      // Platform info
+      platform_slogan: 'Intelligent audit platform'
     }
   }
 };
 
-// Configurar i18next
+// Initialize i18next
 i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'es', // idioma predeterminado
-    fallbackLng: 'es',
+    lng: 'es', // Default language
+    fallbackLng: 'en',
     interpolation: {
-      escapeValue: false // React ya escapa los valores
-    },
-    react: {
-      useSuspense: false
+      escapeValue: false // React already escapes by default
     }
   });
 
