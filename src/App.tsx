@@ -72,7 +72,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen dark:bg-gray-900">
+      <div className="app-container">
         <Routes>
           {/* Login route (accessible to all) */}
           <Route path="/login" element={

@@ -247,6 +247,12 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </>
               ) : t('login')}
             </button>
+
+            <div className="text-center mt-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {t('for_testing')}: admin@example.com / client@example.com (password: password)
+              </p>
+            </div>
           </form>
         </div>
       </div>

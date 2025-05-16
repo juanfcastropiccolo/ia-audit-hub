@@ -15,14 +15,16 @@
     scroll-behavior: smooth;
   }
   
-  /* Tema claro */
+  /* Light theme colors */
   :root {
     --color-primary: #213448;
     --color-secondary: #547792;
     --color-accent: #94B4C1;
     --color-soft-background: #ECEFCA;
     --color-neutral-gray: #8E9196;
-    --color-dark-purple: #1A1F2C;
+    --color-deep-indigo: #1A1F2C;
+    --color-purple-tint: #9b87f5;
+    --color-lavender-mist: #E5DEFF;
     --color-bg-primary: #ffffff;
     --color-bg-secondary: #f8fafc;
     --color-text-primary: #1e293b;
@@ -31,7 +33,7 @@
     --color-shadow: rgba(0, 0, 0, 0.1);
   }
   
-  /* Tema oscuro */
+  /* Dark theme colors */
   .dark {
     --color-bg-primary: #1e293b;
     --color-bg-secondary: #0f172a;
@@ -43,7 +45,6 @@
     --color-shadow: rgba(0, 0, 0, 0.4);
   }
 
-  /* Removed the problematic body styles that center content */
   body {
     margin: 0;
     min-width: 320px;
@@ -52,10 +53,12 @@
   }
 }
 
-/* Estilos generales */
+/* General styles */
 html, body, #root {
   height: 100%;
   width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 #root {
@@ -65,7 +68,7 @@ html, body, #root {
   text-align: left;
 }
 
-/* Estilos para el chat */
+/* Chat message styles */
 .chat-messages-container {
   scrollbar-width: thin;
   scrollbar-color: var(--color-secondary) transparent;
@@ -85,7 +88,7 @@ html, body, #root {
   border: 3px solid transparent;
 }
 
-/* Estilos de animación */
+/* Animation styles */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -119,7 +122,7 @@ html, body, #root {
   @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg;
 }
 
-/* Componentes reutilizables */
+/* Reusable components */
 .card {
   @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-4;
 }
@@ -167,4 +170,38 @@ html, body, #root {
 
 .toggle-switch[data-state="unchecked"] .toggle-thumb {
   @apply translate-x-0;
+}
+
+/* Background colors specific to our color scheme */
+.bg-deep-indigo {
+  background-color: var(--color-deep-indigo);
+}
+
+.bg-primary {
+  background-color: var(--color-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary);
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
+}
+
+/* Text colors specific to our color scheme */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-accent {
+  color: var(--color-accent);
+}
+
+.text-purple-tint {
+  color: var(--color-purple-tint);
 }
