@@ -1,9 +1,9 @@
 
-import React from 'react';
+import { type ReactNode } from 'react';
 import ThemeToggle from '../components/common/ThemeToggle';
 
 interface AuthLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {

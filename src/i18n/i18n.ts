@@ -8,11 +8,15 @@ const resources = {
     translation: {
       // Common
       welcome: 'Bienvenido a AUDIT-IA',
+      welcome_back: '¡Bienvenido de nuevo!',
       login: 'Iniciar sesión',
+      login_to_continue: 'Inicie sesión para continuar con su auditoría',
       logout: 'Cerrar sesión',
       email: 'Correo electrónico',
       password: 'Contraseña',
       search: 'Buscar',
+      remember_me: 'Recordarme',
+      forgot_password: '¿Olvidó su contraseña?',
       
       // Roles
       role_admin: 'Administrador',
@@ -34,18 +38,24 @@ const resources = {
       upload_file: 'Subir archivo',
       
       // Platform info
-      platform_slogan: 'Plataforma inteligente de auditoría'
+      platform_slogan: 'Plataforma inteligente de auditoría',
+      ai_audit_platform: 'AUDIT-IA: Auditoría Inteligente',
+      ai_audit_description: 'Plataforma avanzada de auditoría potenciada por IA'
     }
   },
   en: {
     translation: {
       // Common
       welcome: 'Welcome to AUDIT-IA',
+      welcome_back: 'Welcome back!',
       login: 'Login',
+      login_to_continue: 'Login to continue with your audit',
       logout: 'Logout',
       email: 'Email',
       password: 'Password',
       search: 'Search',
+      remember_me: 'Remember me',
+      forgot_password: 'Forgot password?',
       
       // Roles
       role_admin: 'Administrator',
@@ -67,7 +77,9 @@ const resources = {
       upload_file: 'Upload file',
       
       // Platform info
-      platform_slogan: 'Intelligent audit platform'
+      platform_slogan: 'Intelligent audit platform',
+      ai_audit_platform: 'AUDIT-IA: Intelligent Auditing',
+      ai_audit_description: 'Advanced AI-powered auditing platform'
     }
   }
 };
