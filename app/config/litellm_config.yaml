@@ -1,0 +1,38 @@
+model_list:
+  - model_name: claude-3-haiku
+    litellm_params:
+      model: anthropic/claude-3-haiku
+      api_key: 
+
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: 
+
+  - model_name: gemini-1.5-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: 
+
+router_settings:
+  routing_strategy: simple-shuffle
+  model_group_alias:
+    - name: claude
+      models:
+        - claude-3-haiku
+
+    - name: gpt4
+      models:
+        - gpt-3.5-turbo
+    
+    - name: gemini
+      models:
+        - gemini-1.5-flash
+
+litellm_settings:
+  drop_params: false
+  set_verbose: true
+  api_base: null
+  fallbacks: []
+  allowed_methods: ["POST", "GET", "OPTIONS"]
+  max_tokens: 4096

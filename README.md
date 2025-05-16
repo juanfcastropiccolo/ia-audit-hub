@@ -1,73 +1,113 @@
-# Welcome to your Lovable project
+# AUDIT-IA - Plataforma de Simulación de Auditoría con IA
 
-## Project info
+Esta plataforma proporciona una simulación de un sistema de auditoría que utiliza múltiples agentes de IA en una jerarquía. El sistema permite a los clientes interactuar con asistentes de IA y recibir respuestas que pasan por múltiples niveles de revisión simulados.
 
-**URL**: https://lovable.dev/projects/7d41bff6-2bbd-4edf-ae60-bc0045e66e79
+## Características Principales
 
-## How can I edit this code?
+- **Chat con Asistentes IA**: Interfaz intuitiva para comunicarse con agentes de IA simulando un entorno de auditoría.
+- **Sistema de Multi-Agentes**: Implementación de cuatro niveles de agentes (Asistente, Senior, Supervisor y Manager) con flujo de trabajo secuencial.
+- **Carga de Archivos**: Capacidad para subir archivos financieros (Excel, CSV, PDF) para su análisis.
+- **Selección de Modelo**: Opciones para seleccionar entre diferentes proveedores de LLM (Google Gemini, OpenAI GPT-4, Anthropic Claude).
+- **Panel de Administración**: Monitoreo de equipos de auditoría, eventos y configuración del sistema.
 
-There are several ways of editing your application.
+## Arquitectura
 
-**Use Lovable**
+- **Frontend**: React con TypeScript, Tailwind CSS para UI
+- **Backend**: Python con FastAPI y Google Agent Development Kit (ADK)
+- **Modelos**: Integración con múltiples LLMs a través de LiteLLM
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7d41bff6-2bbd-4edf-ae60-bc0045e66e79) and start prompting.
+## Estructura del Proyecto
 
-Changes made via Lovable will be committed automatically to this repo.
+- `auditoria_ia/`: Código del backend con ADK y API REST
+  - `agents/`: Implementación de los diferentes agentes y su jerarquía
+  - `tools/`: Herramientas para análisis financiero y procesamiento de datos
+  - `utils/`: Utilidades y servicios auxiliares
+- `frontend/`: Aplicación web React con TypeScript
+  - `src/components/`: Componentes de UI para el chat, dashboard, etc.
+  - `src/api/`: Funciones para comunicación con el backend
+- `uploads/`: Directorio para almacenar los archivos subidos por los clientes
+- Scripts para iniciar los distintos componentes
 
-**Use your preferred IDE**
+## Cómo Iniciar la Aplicación
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Requisitos Previos
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Python 3.9+ 
+- Node.js 18+ y npm
+- Claves API para los LLMs (opcional, solo necesario para los modelos que desee usar)
 
-Follow these steps:
+### Configuración del Backend
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Cree un archivo `.env` en el directorio raíz con sus claves API:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```
+# Al menos una de estas claves es necesaria para usar modelos externos
+GOOGLE_API_KEY=your_google_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+OPENAI_API_KEY=your_openai_api_key
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Opcional, para persistencia de datos
+MONGODB_CONNECTION_STRING=your_mongodb_connection_string
 ```
 
-**Edit a file directly in GitHub**
+2. Instale las dependencias del backend:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+pip install -r auditoria_ia/requirements.txt
+```
 
-**Use GitHub Codespaces**
+### Instalación del Frontend
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Instale las dependencias del frontend:
 
-## What technologies are used for this project?
+```bash
+cd frontend
+npm install
+```
 
-This project is built with:
+### Iniciar la Aplicación
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Puede iniciar todos los componentes con el script de inicio:
 
-## How can I deploy this project?
+```bash
+./start_all.sh
+```
 
-Simply open [Lovable](https://lovable.dev/projects/7d41bff6-2bbd-4edf-ae60-bc0045e66e79) and click on Share -> Publish.
+O iniciar los componentes individualmente:
 
-## Can I connect a custom domain to my Lovable project?
+- Para iniciar solo el backend:
+```bash
+./start_backend.sh
+```
 
-Yes, you can!
+- Para iniciar solo el frontend:
+```bash
+./start_frontend.sh
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+La aplicación estará disponible en:
+- Frontend: http://localhost:5174
+- API Backend: http://localhost:8000/api
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Flujo de Trabajo de Multi-Agentes
+
+1. **Assistant Agent**: Primera línea de contacto con el cliente. Recibe consultas y archivos.
+2. **Senior Agent**: Revisa las respuestas del Asistente y mejora la calidad.
+3. **Supervisor Agent**: Supervisa el cumplimiento de políticas y agrega contexto empresarial.
+4. **Manager Agent**: Realiza la revisión final y aprueba las respuestas al cliente.
+
+Cada nivel de agente puede ejecutarse con diferentes modelos LLM configurables desde el panel de administración.
+
+## Credenciales de Acceso
+
+- **Admin**: admin@audit.com / password
+- **Cliente**: cliente@empresa.com / password
+
+## Estado Actual
+
+- ✅ Interfaz de chat completa con carga de archivos
+- ✅ Procesamiento de archivos (Excel, CSV, PDF)
+- ✅ Implementación de jerarquía de agentes
+- ✅ Panel de administración para cambio de modelo
+- ✅ API backend funcionando con FastAPI
+- ✅ Integración con múltiples proveedores de LLM 
