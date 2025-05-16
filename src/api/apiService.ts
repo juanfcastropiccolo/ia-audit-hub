@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 
 // API URL configuration - Dynamic port detection
@@ -26,7 +25,7 @@ export interface MessageResponse {
 // API for communicating with LLM models
 export const sendMessageToLLM = async (params: SendMessageParams): Promise<MessageResponse> => {
   const { message, clientId, sessionId, modelType } = params;
-  // Removed unused agentType parameter
+  // Unused agentType is not destructured from params
   
   if (modelType === 'mock') {
     // Mock response for testing without backend

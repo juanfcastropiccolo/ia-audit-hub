@@ -1,9 +1,12 @@
-
-import React from 'react';
+import { type ReactNode } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-const AdminLayout: React.FC = () => {
+interface AdminLayoutProps {
+  children?: ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -46,7 +49,7 @@ const AdminLayout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
-          <Outlet />
+          {children || <Outlet />}
         </div>
       </div>
     </div>

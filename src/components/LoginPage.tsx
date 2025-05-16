@@ -34,7 +34,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
     try {
       const data = await login(formData.email, formData.password);
       
-      // Access token from data directly, not from User type
+      // Cast data to ensure token property access
       const authToken = data as unknown as { token: string };
       localStorage.setItem('token', authToken.token);
       localStorage.setItem('user', JSON.stringify({
