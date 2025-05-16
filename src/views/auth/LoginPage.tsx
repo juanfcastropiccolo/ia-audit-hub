@@ -78,36 +78,42 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className="flex min-h-screen w-full overflow-hidden">
-      {/* Left side - Illustration with logo and text */}
-      <div className="hidden md:flex md:w-1/2 bg-deep-indigo flex-col justify-between p-12 relative overflow-hidden">
-        <div className="z-10">
-          <div className="flex items-center">
-            <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+      {/* Left side - Brand panel with gradient */}
+      <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-br from-deep-indigo via-primary to-secondary">
+        <div className="absolute inset-0">
+          <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple-tint/20 blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          <div className="fade-in">
+            <div className="flex items-center">
+              <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto" />
+            </div>
+          </div>
+          
+          <div className="z-10 flex flex-col space-y-6 fade-in">
+            <h1 className="text-4xl font-bold text-white">
+              {t('ai_audit_platform')}
+            </h1>
+            <p className="text-xl text-gray-300 max-w-md">
+              {t('ai_audit_description')}
+            </p>
+            <div className="h-1 w-20 bg-accent rounded"></div>
+          </div>
+          
+          <div className="z-10 text-gray-400 text-sm fade-in">
+            © {new Date().getFullYear()} AUDIT-IA
           </div>
         </div>
-        
-        <div className="z-10 flex flex-col space-y-6">
-          <h1 className="text-4xl font-bold text-white">
-            {t('ai_audit_platform')}
-          </h1>
-          <p className="text-xl text-gray-300 max-w-md">
-            {t('ai_audit_description')}
-          </p>
-          <div className="h-1 w-20 bg-accent rounded"></div>
-        </div>
-        
-        <div className="z-10 text-gray-400 text-sm">
-          © {new Date().getFullYear()} AUDIT-IA
-        </div>
-        
-        {/* Background decoration elements */}
-        <div className="absolute top-[-100px] left-[-100px] w-[400px] h-[400px] rounded-full bg-accent/10 blur-3xl"></div>
-        <div className="absolute bottom-[-50px] right-[-50px] w-[300px] h-[300px] rounded-full bg-purple-tint/20 blur-3xl"></div>
       </div>
       
       {/* Right side - Login form */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-white dark:bg-gray-900">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md p-8 rounded-2xl transition-all duration-300 
+                      border border-gray-100 dark:border-gray-800 
+                      shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
+                      bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
           <div className="text-center mb-8 md:hidden">
             <img src="/logo.png" alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
           </div>
@@ -122,19 +128,19 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
           
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 rounded">
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 rounded animate-fade-in">
               <p>{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
+            <div className="group">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">
                 {t('email')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MailIcon size={18} className="text-gray-400" />
+                  <MailIcon size={18} className="text-gray-400 group-hover:text-primary transition-colors duration-200" />
                 </div>
                 <input
                   id="email"
@@ -143,25 +149,28 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
+                          focus:ring-2 focus:ring-primary focus:border-primary 
+                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-accent
+                          transition-colors duration-200"
                   placeholder="nombre@empresa.com"
                   disabled={isLoading}
                 />
               </div>
             </div>
 
-            <div>
+            <div className="group">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="password">
                   {t('password')}
                 </label>
-                <a href="#" className="text-xs text-primary hover:text-primary/80 dark:text-accent dark:hover:text-accent/80 hover:underline">
+                <a href="#" className="text-xs text-primary hover:text-primary/80 dark:text-accent dark:hover:text-accent/80 hover:underline transition-colors duration-200">
                   {t('forgot_password')}
                 </a>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <LockIcon size={18} className="text-gray-400" />
+                  <LockIcon size={18} className="text-gray-400 group-hover:text-primary transition-colors duration-200" />
                 </div>
                 <input
                   id="password"
@@ -170,7 +179,10 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:focus:ring-accent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
+                          focus:ring-2 focus:ring-primary focus:border-primary 
+                          dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-accent
+                          transition-colors duration-200"
                   placeholder="••••••••"
                   disabled={isLoading}
                 />
@@ -180,17 +192,18 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 dark:text-gray-300"
                 >
                   {showPassword ? 
-                    <EyeOffIcon size={18} className="text-gray-400 hover:text-gray-600" /> : 
-                    <EyeIcon size={18} className="text-gray-400 hover:text-gray-600" />
+                    <EyeOffIcon size={18} className="text-gray-400 hover:text-gray-600 transition-colors duration-200" /> : 
+                    <EyeIcon size={18} className="text-gray-400 hover:text-gray-600 transition-colors duration-200" />
                   }
                 </button>
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 space-y-4">
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('role_selection')}</div>
               <div className="flex space-x-4">
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 transition-all hover:border-primary dark:hover:border-accent">
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+                              transition-all hover:border-primary dark:hover:border-accent hover:shadow-md">
                   <input
                     type="radio"
                     name="role"
@@ -202,7 +215,8 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   />
                   <span className="text-gray-700 dark:text-gray-300">{t('role_client')}</span>
                 </label>
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 transition-all hover:border-primary dark:hover:border-accent">
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+                              transition-all hover:border-primary dark:hover:border-accent hover:shadow-md">
                   <input
                     type="radio"
                     name="role"
@@ -218,23 +232,37 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             </div>
 
             <div className="flex items-center">
-              <input
-                id="remember"
-                name="remember"
-                type="checkbox"
-                checked={formData.remember}
-                onChange={handleChange}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                disabled={isLoading}
-              />
-              <label htmlFor="remember" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+              <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors 
+                          bg-gray-200 dark:bg-gray-700 cursor-pointer"
+                   onClick={() => handleChange({
+                     target: {
+                       name: 'remember',
+                       type: 'checkbox',
+                       checked: !formData.remember
+                     }
+                   } as React.ChangeEvent<HTMLInputElement>)}>
+                <span className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform
+                              ${formData.remember ? 'translate-x-5' : 'translate-x-0'}`} />
+              </div>
+              <label className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer" 
+                    onClick={() => handleChange({
+                      target: {
+                        name: 'remember',
+                        type: 'checkbox',
+                        checked: !formData.remember
+                      }
+                    } as React.ChangeEvent<HTMLInputElement>)}>
                 {t('remember_me')}
               </label>
             </div>
 
             <button
               type="submit"
-              className="w-full flex justify-center items-center py-3 px-4 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg shadow transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+              className="w-full flex justify-center items-center py-3 px-4 
+                      bg-primary hover:bg-primary/90 text-white font-medium rounded-lg 
+                      shadow transition duration-150 ease-in-out 
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary 
+                      disabled:opacity-50 hover:shadow-lg transform hover:-translate-y-0.5"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -247,12 +275,6 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </>
               ) : t('login')}
             </button>
-
-            <div className="text-center mt-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('for_testing')}: admin@example.com / client@example.com (password: password)
-              </p>
-            </div>
           </form>
         </div>
       </div>

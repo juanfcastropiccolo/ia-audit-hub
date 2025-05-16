@@ -8,7 +8,7 @@ interface AuthLayoutProps {
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen w-full overflow-x-hidden">
+    <div className="min-h-screen w-full overflow-hidden">
       <div className="absolute top-4 right-4 z-50">
         <ThemeToggle />
       </div>

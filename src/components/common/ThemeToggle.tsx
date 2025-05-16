@@ -30,7 +30,10 @@ function ThemeToggle() {
   return (
     <button
       type="button"
-      className="p-2 rounded-full hover:bg-primary/20 dark:hover:bg-gray-700 focus:outline-none transition-colors"
+      className="p-2 rounded-full bg-white/10 backdrop-blur-sm 
+              hover:bg-primary/20 dark:hover:bg-gray-700 
+              focus:outline-none transition-all duration-300
+              shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
       onClick={toggleTheme}
       aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
     >
@@ -43,7 +46,7 @@ function ThemeToggle() {
           strokeWidth="2" 
           strokeLinecap="round" 
           strokeLinejoin="round" 
-          className="w-5 h-5"
+          className="w-5 h-5 text-yellow-300"
         >
           <circle cx="12" cy="12" r="5"></circle>
           <line x1="12" y1="1" x2="12" y2="3"></line>
@@ -64,7 +67,7 @@ function ThemeToggle() {
           strokeWidth="2" 
           strokeLinecap="round" 
           strokeLinejoin="round" 
-          className="w-5 h-5"
+          className="w-5 h-5 text-purple-tint"
         >
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>

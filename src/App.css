@@ -11,3 +11,24 @@
   min-height: 100vh;
   display: flex;
 }
+
+/* Animation classes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Glass effect for modern UI */
+.glass {
+  @apply backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg;
+}
