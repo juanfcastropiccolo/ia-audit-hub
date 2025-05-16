@@ -1,6 +1,22 @@
 
-import { Client, Message, MessageRole } from '@/types';
+import { Client, Message, MessageRole, User, ApiResponse } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+
+// Mock user data
+const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'Admin User',
+    email: 'admin@audit-ia.com',
+    role: 'admin'
+  },
+  {
+    id: '2',
+    name: 'Client User',
+    email: 'client@example.com',
+    role: 'client'
+  }
+];
 
 // Mock client data for demonstration
 const mockClients: Client[] = [
@@ -48,10 +64,65 @@ const mockMessages: Message[] = [
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Mock authentication API
+export const mockAuthApi = {
+  // Login function
+  login: async (email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> => {
+    await delay(1000);
+    
+    // Simple mock validation
+    if (email === 'admin@audit-ia.com' && password === 'admin') {
+      return {
+        success: true,
+        data: {
+          user: mockUsers[0],
+          token: 'mock-admin-token-12345'
+        }
+      };
+    } else if (email === 'client@example.com' && password === 'client') {
+      return {
+        success: true,
+        data: {
+          user: mockUsers[1],
+          token: 'mock-client-token-67890'
+        }
+      };
+    } else {
+      return {
+        success: false,
+        data: { user: null, token: '' },
+        message: 'Credenciales inválidas'
+      };
+    }
+  },
+  
+  // Get current user profile
+  getProfile: async (): Promise<ApiResponse<User>> => {
+    await delay(500);
+    
+    // In a real app, we would validate the token and return the corresponding user
+    // For this mock, we'll just return the admin user
+    return {
+      success: true,
+      data: mockUsers[0]
+    };
+  },
+  
+  // Logout function
+  logout: async (): Promise<ApiResponse<null>> => {
+    await delay(300);
+    
+    return {
+      success: true,
+      data: null
+    };
+  }
+};
+
 // Mock client API functions
 export const mockClientApi = {
   // Get all clients
-  getClients: async () => {
+  getClients: async (): Promise<ApiResponse<Client[]>> => {
     await delay(800);
     return {
       success: true,
@@ -60,13 +131,14 @@ export const mockClientApi = {
   },
   
   // Get client by ID
-  getClient: async (id: string) => {
+  getClient: async (id: string): Promise<ApiResponse<Client>> => {
     await delay(500);
     const client = mockClients.find(c => c.id === id);
     
     if (!client) {
       return {
         success: false,
+        data: {} as Client,
         message: 'Client not found'
       };
     }
@@ -81,7 +153,7 @@ export const mockClientApi = {
 // Mock chat API functions
 export const mockChatApi = {
   // Get chat history
-  getChatHistory: async () => {
+  getChatHistory: async (): Promise<ApiResponse<Message[]>> => {
     await delay(1000);
     return {
       success: true,
@@ -90,7 +162,7 @@ export const mockChatApi = {
   },
   
   // Send a message
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string): Promise<ApiResponse<Message>> => {
     await delay(500);
     
     // Create user message
@@ -138,7 +210,7 @@ export const mockChatApi = {
   },
   
   // Upload a document
-  uploadDocument: async (file: File) => {
+  uploadDocument: async (file: File): Promise<ApiResponse<Message>> => {
     await delay(2000);
     
     const systemMessage: Message = {

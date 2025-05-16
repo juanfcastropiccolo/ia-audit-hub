@@ -29,7 +29,7 @@ export interface Message {
   role: MessageRole;
   content: string;
   timestamp: string;
-  status?: 'sending' | 'sent' | 'error';
+  status?: 'sending' | 'sent' | 'delivered' | 'error';
   isMarkdown?: boolean;
 }
 
@@ -44,7 +44,7 @@ export interface Client {
 
 // API Response types
 export interface ApiResponse<T> {
-  data: T;
   success: boolean;
+  data: T;
   message?: string;
 }
