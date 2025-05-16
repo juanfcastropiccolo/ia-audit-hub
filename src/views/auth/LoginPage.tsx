@@ -1,20 +1,11 @@
 
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
-import { login } from '../../api/auth';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Define UserRole type matching App.tsx
 type UserRole = 'admin' | 'client';
-
-interface LoginFormData {
-  email: string;
-  password: string;
-  role: UserRole;
-  remember: boolean;
-}
 
 interface LoginPageProps {
   onLoginSuccess: (role: UserRole) => void;
@@ -22,10 +13,11 @@ interface LoginPageProps {
 
 function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState<LoginFormData>({
+  const { signIn, loading: authLoading } = useAuth();
+  const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'client',
+    role: 'client' as UserRole,
     remember: false
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -33,29 +25,31 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await login(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password);
       
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify({
-        name: data.name,
-        email: data.email,
-        role: data.role
-      }));
-
-      onLoginSuccess(data.role as UserRole);
-      
-      if (data.role === 'admin') {
-        navigate('/admin/clients');
+      if (error) {
+        setError(error.message || t('invalidCredentials'));
       } else {
-        navigate('/chat');
-      }
+        // Store role in localStorage for app routing
+        localStorage.setItem('user', JSON.stringify({
+          email: formData.email,
+          role: formData.role
+        }));
 
+        onLoginSuccess(formData.role);
+        
+        if (formData.role === 'admin') {
+          navigate('/admin/clients');
+        } else {
+          navigate('/chat');
+        }
+      }
     } catch (error) {
       console.error('Login error:', error);
       setError(error instanceof Error ? error.message : t('invalidCredentials'));
@@ -263,7 +257,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       shadow transition duration-150 ease-in-out 
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo 
                       disabled:opacity-50 hover:shadow-lg transform hover:-translate-y-0.5"
-              disabled={isLoading}
+              disabled={isLoading || authLoading}
             >
               {isLoading ? (
                 <>

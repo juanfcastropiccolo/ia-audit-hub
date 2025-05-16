@@ -1,122 +1,34 @@
 
-import { useEffect, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useRef, useState } from 'react';
+import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
 import ChatHeader from '../../components/client/ChatHeader';
-import ChatMessageList from '../../components/client/ChatMessageList';
+import MessageBubble from '../../components/client/MessageBubble';
 import ChatInput from '../../components/client/ChatInput';
-import { sendMessageToLLM, uploadFileForAnalysis, type LLMModel } from '../../api/apiService';
-import type { Message } from '../../types/chat';
+import { useTranslation } from 'react-i18next';
 
 function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { t } = useTranslation();
+  const { messages, sendMessage, isLoading } = useChat();
+  const { signOut } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ email: string, role: string, name: string } | null>(null);
-  const [sessionId, setSessionId] = useState(() => uuidv4());
-  const [selectedModel, setSelectedModel] = useState<LLMModel>('mock');
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    // Get user from localStorage (set during login)
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUserInfo(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
-      }
-    }
-
-    // Initialize welcome message
-    setMessages([
-      {
-        id: uuidv4(),
-        text: '¡Bienvenido a la plataforma de Auditoría IA! Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
-        role: 'assistant',
-        timestamp: new Date(),
-        model: 'system'
-      }
-    ]);
-  }, []);
-
-  const handleModelChange = (newModel: LLMModel) => {
-    setSelectedModel(newModel);
+  const handleSendMessage = async () => {
+    if (!currentMessage.trim() || isLoading) return;
     
-    const systemMsg: Message = {
-      id: uuidv4(),
-      text: `Has cambiado al modelo ${getModelDisplayName(newModel)}. Ahora tus mensajes serán procesados usando este modelo.`,
-      role: 'assistant',
-      timestamp: new Date(),
-      model: 'system'
-    };
-    setMessages(prev => [...prev, systemMsg]);
-  };
-
-  const getModelDisplayName = (model: LLMModel): string => {
-    switch (model) {
-      case 'gemini': return 'Gemini (Google)';
-      case 'claude': return 'Claude (Anthropic)';
-      case 'gpt4': return 'GPT-4 (OpenAI)';
-      case 'mock': return 'Mock (Simulación)';
-      default: return model;
-    }
-  };
-
-  const sendMessage = async () => {
-    const text = currentMessage.trim();
-    if (!text || isLoading || !userInfo) return;
-    
-    const userMsg: Message = {
-      id: uuidv4(),
-      text,
-      role: 'user',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, userMsg]);
-    setCurrentMessage('');
-    setIsLoading(true);
-
     try {
-      const response = await sendMessageToLLM({
-        message: text,
-        clientId: userInfo.email,
-        sessionId,
-        modelType: selectedModel,
-        agentType: 'assistant'
-      });
+      await sendMessage(currentMessage);
+      setCurrentMessage('');
       
-      if (response.sessionId && response.sessionId !== sessionId) {
-        setSessionId(response.sessionId);
-      }
-      
-      const assistantMsg: Message = {
-        id: uuidv4(),
-        text: response.message,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: response.modelUsed
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorText = error instanceof Error ? error.message : 'No se pudo enviar el mensaje.';
-      const errorMsg: Message = {
-        id: uuidv4(),
-        text: `Error: ${errorText}`,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: 'error'
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -125,66 +37,56 @@ function ChatPage() {
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // File handling code will be implemented in a future update
     const file = e.target.files?.[0];
-    if (!file || !userInfo) return;
-
-    const uploadMsg: Message = {
-      id: uuidv4(),
-      text: `[Archivo "${file.name}" subido. Procesando...]`,
-      role: 'user',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, uploadMsg]);
-    setIsLoading(true);
-
-    try {
-      const response = await uploadFileForAnalysis(
-        file,
-        userInfo.email,
-        sessionId,
-        selectedModel
-      );
-      
-      const responseMsg: Message = {
-        id: uuidv4(),
-        text: response.message,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: response.modelUsed,
-        fileName: file.name
-      };
-      setMessages(prev => [...prev, responseMsg]);
-      
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      const errorText = error instanceof Error ? error.message : 'Error al subir el archivo.';
-      const errorMsg: Message = {
-        id: uuidv4(),
-        text: `Error: ${errorText}`,
-        role: 'assistant',
-        timestamp: new Date(),
-        model: 'error'
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
-      if (e.target) e.target.value = '';
-    }
+    if (!file) return;
+    
+    console.log('File selected:', file.name);
+    
+    // Reset the input
+    if (e.target) e.target.value = '';
   };
 
   return (
     <div className="flex flex-col h-screen bg-soft-background dark:bg-deep-indigo">
       <ChatHeader 
-        selectedModel={selectedModel} 
-        onModelChange={handleModelChange} 
-        userInfo={userInfo}
+        selectedModel="gemini" 
+        onModelChange={() => {}} 
+        userInfo={{
+          email: 'user@example.com',
+          role: 'client',
+          name: 'Cliente'
+        }}
+        onLogout={signOut}
       />
       
-      <ChatMessageList 
-        messages={messages} 
-        messagesEndRef={messagesEndRef}
-      />
-        
+      <div className="flex-1 overflow-y-auto p-4 pb-20">
+        <div className="flex flex-col max-w-4xl mx-auto">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-gray-500 dark:text-gray-400">
+                <p className="mb-2">{t('welcome')}</p>
+                <p>{t('typing_message')}</p>
+              </div>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div 
+                key={msg.id} 
+                className={`flex flex-col ${msg.sender === 'client' ? 'items-end' : 'items-start'} mb-4`}
+              >
+                <MessageBubble 
+                  sender={msg.sender} 
+                  text={msg.message}
+                  timestamp={new Date(msg.timestamp)}
+                />
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+      
       {/* Hidden file input */}
       <input
         type="file"
@@ -197,7 +99,7 @@ function ChatPage() {
       <ChatInput 
         currentMessage={currentMessage}
         setCurrentMessage={setCurrentMessage}
-        sendMessage={sendMessage}
+        sendMessage={handleSendMessage}
         handleUploadClick={handleUploadClick}
         isLoading={isLoading}
       />
