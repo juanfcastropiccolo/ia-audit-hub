@@ -1,4 +1,6 @@
+
 import api from "./index";
+import { AxiosResponse } from "axios";
 
 // Types
 export interface StartSessionPayload {
@@ -7,14 +9,24 @@ export interface StartSessionPayload {
   use_supabase?: boolean;
 }
 
-export const startSession = async (body: StartSessionPayload) => {
-  return api.post("/sessions/start", body).then(r => r.data);
+export interface SessionResponse {
+  session_id: string;
+  // Add other response fields here as needed
+}
+
+export interface MessageResponse {
+  message: string;
+  // Add other response fields here as needed
+}
+
+export const startSession = async (body: StartSessionPayload): Promise<SessionResponse> => {
+  return api.post("/sessions/start", body).then((r: AxiosResponse) => r.data);
 };
 
 export const sendMessage = async (
   sessionId: string,
   message: string,
-) => {
+): Promise<MessageResponse> => {
   return api.post(`/sessions/${sessionId}/message`, { message })
-            .then(r => r.data);
+            .then((r: AxiosResponse) => r.data);
 };

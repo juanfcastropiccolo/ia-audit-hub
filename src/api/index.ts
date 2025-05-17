@@ -1,4 +1,5 @@
-import axios from "axios";
+
+import axios, { AxiosResponse, AxiosError } from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -6,8 +7,8 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-  (res) => res,
-  (err) => {
+  (res: AxiosResponse) => res,
+  (err: AxiosError) => {
     // centralised error handling
     console.error(err.response?.data || err.message);
     return Promise.reject(err);
