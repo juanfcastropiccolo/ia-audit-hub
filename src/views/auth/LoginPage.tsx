@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../integrations/supabase/client';
 
 type UserRole = 'admin' | 'client';
 
@@ -30,31 +30,17 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   useEffect(() => {
     const fetchLogo = async () => {
       try {
-        // Try to get file from public bucket first
-        let { data: publicBucketData } = await supabase
-          .storage
-          .from('public')
-          .download('logo.png');
-
-        if (publicBucketData) {
-          const url = URL.createObjectURL(publicBucketData);
-          setLogoUrl(url);
-          return;
-        }
-
-        // If not in public bucket, try pictures bucket
-        let { data: picturesBucketData } = await supabase
+        const { data: publicUrl } = supabase
           .storage
           .from('pictures')
-          .download('trimmed_logo.png');
-
-        if (picturesBucketData) {
-          const url = URL.createObjectURL(picturesBucketData);
-          setLogoUrl(url);
+          .getPublicUrl('trimmed_logo.png');
+        
+        if (publicUrl?.publicUrl) {
+          setLogoUrl(publicUrl.publicUrl);
           return;
         }
-
-        // If both attempts fail, log the issue but keep using local logo
+        
+        // If no public URL, try to use the old method as fallback
         console.log('Using local logo as fallback');
       } catch (error) {
         console.error('Error fetching logo from Supabase:', error);
@@ -123,7 +109,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="fade-in">
             <div className="flex items-center">
               <img 
-                src={logoUrl || '/logo.png'} 
+                src={logoUrl} 
                 alt="AUDIT-IA Logo" 
                 className="h-16 w-auto"
                 onError={(e) => {
@@ -157,16 +143,17 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       border border-gray-100 dark:border-gray-800 
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
-          <div className="text-center mb-8 md:hidden">              <img 
-                src={logoUrl || '/logo.png'} 
-                alt="AUDIT-IA Logo" 
-                className="h-16 w-auto mx-auto mb-4"
-                onError={(e) => {
-                  console.error('Error loading logo from Supabase, falling back to local logo');
-                  e.currentTarget.onerror = null; // Prevent infinite error loops
-                  setLogoUrl('/logo.png');
-                }}
-              />
+          <div className="text-center mb-8 md:hidden">
+            <img 
+              src={logoUrl} 
+              alt="AUDIT-IA Logo" 
+              className="h-16 w-auto mx-auto mb-4"
+              onError={(e) => {
+                console.error('Error loading logo from Supabase, falling back to local logo');
+                e.currentTarget.onerror = null; // Prevent infinite error loops
+                setLogoUrl('/logo.png');
+              }}
+            />
           </div>
           
           <div className="mb-8">
