@@ -100,57 +100,21 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-hidden">
+    <div className="flex flex-col md:flex-row w-screen h-screen overflow-hidden">
       {/* Left side - Brand panel with gradient */}
-      <div className="hidden md:flex md:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo via-purple to-lavender">
+      <div className="hidden md:flex md:flex-col md:basis-1/2 md:min-w-[280px] relative overflow-hidden bg-gradient-to-br from-indigo via-purple to-lavender">
         <div className="absolute inset-0">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple/20 blur-3xl animate-pulse"></div>
           <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-softYellow/20 blur-3xl"></div>
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <div className="fade-in">
-            <div className="flex items-center">
-              <img 
-                src={logoUrl} 
-                alt="AUDIT-IA Logo" 
-                className="h-16 w-auto"
-                onError={(e) => {
-                  console.error('Error loading logo from Supabase, falling back to local logo');
-                  e.currentTarget.onerror = null; // Prevent infinite error loops
-                  setLogoUrl('/logo.png');
-                }}
-              />
-            </div>
-          </div>
-          
-          <div className="z-10 flex flex-col space-y-6 fade-in">
-            <h1 className="text-4xl font-bold text-white">
-              {t('ai_audit_platform')}
-            </h1>
-            <p className="text-xl text-gray-100 max-w-md">
-              {t('ai_audit_description')}
-            </p>
-            <div className="h-1 w-20 bg-softYellow rounded"></div>
-          </div>
-          
-          <div className="z-10 text-gray-200 text-sm fade-in">
-            © {new Date().getFullYear()} AUDIT-IA
-          </div>
-        </div>
-      </div>
-      
-      {/* Right side - Login form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-white dark:bg-gray-900">
-        <div className="w-full max-w-md p-8 rounded-2xl transition-all duration-300 
-                      border border-gray-100 dark:border-gray-800 
-                      shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
-                      bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
-          <div className="text-center mb-8 md:hidden">
+        <div className="relative z-10 flex flex-col justify-between p-8 md:p-12 w-full h-full">
+          <div className="flex items-center">
             <img 
               src={logoUrl} 
               alt="AUDIT-IA Logo" 
-              className="h-16 w-auto mx-auto mb-4"
+              className="h-12 md:h-16 max-w-[160px] w-auto object-contain"
+              aria-label="AUDIT-IA company logo"
               onError={(e) => {
                 console.error('Error loading logo from Supabase, falling back to local logo');
                 e.currentTarget.onerror = null; // Prevent infinite error loops
@@ -159,8 +123,45 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             />
           </div>
           
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-indigo dark:text-lavender">
+          <div className="z-10 flex flex-col space-y-4 md:space-y-6">
+            <h1 className="text-3xl md:text-4xl font-bold text-white">
+              {t('ai_audit_platform')}
+            </h1>
+            <p className="text-lg md:text-xl text-gray-100 max-w-md">
+              {t('ai_audit_description')}
+            </p>
+            <div className="h-1 w-20 bg-softYellow rounded"></div>
+          </div>
+          
+          <div className="z-10 text-gray-200 text-sm">
+            © {new Date().getFullYear()} AUDIT-IA
+          </div>
+        </div>
+      </div>
+      
+      {/* Right side - Login form */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-white dark:bg-gray-900">
+        <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl transition-all duration-300 
+                      border border-gray-100 dark:border-gray-800 
+                      shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
+                      bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+          {/* Logo for mobile view only */}
+          <div className="text-center mb-6 md:hidden">
+            <img 
+              src={logoUrl} 
+              alt="AUDIT-IA Logo" 
+              className="h-12 w-auto mx-auto mb-4 object-contain"
+              aria-label="AUDIT-IA company logo - mobile view"
+              onError={(e) => {
+                console.error('Error loading logo from Supabase, falling back to local logo');
+                e.currentTarget.onerror = null; // Prevent infinite error loops
+                setLogoUrl('/logo.png');
+              }}
+            />
+          </div>
+          
+          <div className="mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-indigo dark:text-lavender">
               {t('welcome_back')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-2">
@@ -169,12 +170,12 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
           
           {error && (
-            <div className="mb-6 p-4 bg-softYellow/20 border-l-4 border-softYellow text-indigo dark:bg-softYellow/10 dark:text-softYellow rounded animate-fade-in">
+            <div className="mb-6 p-4 bg-softYellow/20 border-l-4 border-softYellow text-indigo dark:bg-softYellow/10 dark:text-softYellow rounded">
               <p>{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="group">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">
                 {t('email')}
@@ -190,7 +191,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
+                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg 
                           focus:ring-2 focus:ring-indigo focus:border-indigo 
                           dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
@@ -220,7 +221,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg 
+                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg 
                           focus:ring-2 focus:ring-indigo focus:border-indigo 
                           dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
@@ -240,10 +241,10 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
             </div>
 
-            <div className="pt-2 space-y-4">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('role_selection')}</div>
-              <div className="flex space-x-4">
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+            <div className="pt-1 space-y-3">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('role_selection')}</div>
+              <div className="flex space-x-3">
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
                               transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
@@ -254,9 +255,9 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     className="form-radio text-indigo focus:ring-indigo mr-2"
                     disabled={isLoading}
                   />
-                  <span className="text-gray-700 dark:text-gray-300">{t('role_client')}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('role_client')}</span>
                 </label>
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
                               transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
@@ -267,7 +268,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     className="form-radio text-indigo focus:ring-indigo mr-2"
                     disabled={isLoading}
                   />
-                  <span className="text-gray-700 dark:text-gray-300">{t('role_admin')}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t('role_admin')}</span>
                 </label>
               </div>
             </div>
@@ -299,7 +300,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full flex justify-center items-center py-3 px-4 
+              className="w-full flex justify-center items-center py-2.5 px-4 
                       bg-indigo hover:bg-indigo/90 text-white font-medium rounded-lg 
                       shadow transition duration-150 ease-in-out 
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo 
