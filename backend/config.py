@@ -10,12 +10,13 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Configuración de la base de datos
-MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING", "mongodb://localhost:27017")
-MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "auditoria_ia")
+# ──────────────────────────── Supabase ─────────────────────────────
+SUPABASE_URL         = os.getenv("SUPABASE_URL", "")        # p. ej. "https://xyz.supabase.co"
+SUPABASE_ANON_KEY      = os.getenv("SUPABASE_ANON_KEY", "public")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")  # ⚠︎ usa la *service key* si es backend
 
 # Configuración de la aplicación
-APP_NAME = "auditoria_ia"
+APP_NAME = "audit-ia"
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 # Configuración del servidor

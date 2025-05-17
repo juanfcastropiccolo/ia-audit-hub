@@ -13,11 +13,11 @@ También incluye funciones para crear equipos completos con diferentes configura
 de jerarquía (hierarchy.py).
 """
 
-from auditoria_ia.agents.assistant_agent import create_assistant_agent
-from auditoria_ia.agents.senior_agent import create_senior_agent
-from auditoria_ia.agents.supervisor_agent import create_supervisor_agent
-from auditoria_ia.agents.manager_agent import create_manager_agent
-from auditoria_ia.agents.hierarchy import (
+from backend.agents.assistant_agent import create_assistant_agent
+from backend.agents.senior_agent import create_senior_agent
+from backend.agents.supervisor_agent import create_supervisor_agent
+from backend.agents.manager_agent import create_manager_agent
+from backend.agents.hierarchy import (
     create_audit_team,
     create_workflow_audit_team,
     create_assistant_only

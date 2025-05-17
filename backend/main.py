@@ -8,6 +8,7 @@ import socket
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse, JSONResponse
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -23,8 +24,8 @@ if parent_dir not in sys.path:
 load_dotenv()
 
 # Intentar importar los componentes directamente
-from auditoria_ia.config import APP_NAME, HOST, PORT
-from auditoria_ia.agents import (
+from backend.config import APP_NAME, HOST, PORT
+from backend.agents import (
     create_assistant_agent, 
     create_senior_agent, 
     create_supervisor_agent, 
@@ -33,330 +34,396 @@ from auditoria_ia.agents import (
     create_workflow_audit_team, 
     create_assistant_only
 )
-from auditoria_ia.utils.mongodb_service import MongoDBSessionService
 
-def initialize_session_service(use_mongodb=False):
-    """Inicializa el servicio de sesión según la configuración.
-    
-    Args:
-        use_mongodb: Si se debe usar MongoDB en lugar de memoria.
-        
-    Returns:
-        El servicio de sesión inicializado.
+from backend.utils import SupabaseSessionService, setup_logger
+log = setup_logger(__name__)
+
+def initialize_session_service(*, use_supabase: bool = False):
     """
-    if use_mongodb and os.getenv("MONGODB_CONNECTION_STRING"):
-        print("Inicializando servicio de sesión con MongoDB...")
-        return MongoDBSessionService()
+    Crea y devuelve el servicio de sesión.
+
+    Params
+    ------
+    use_supabase : bool
+        Si es True y hay credenciales válidas en el entorno, se usa Supabase;
+        de lo contrario se cae al servicio en memoria.
+    """
+
+    supabase_url   = os.getenv("SUPABASE_URL")
+    supabase_key   = os.getenv("SUPABASE_SERVICE_KEY")
+
+    if use_supabase and supabase_url and supabase_key:
+        log.info("Inicializando servicio de sesión con Supabase…")
+        return SupabaseSessionService()
     else:
-        print("Inicializando servicio de sesión en memoria...")
+        if use_supabase:
+            log.warning("Variables SUPABASE_URL / SUPABASE_SERVICE_KEY no definidas. "
+                        "Se usará InMemorySessionService.")
+        else:
+            log.info("Inicializando servicio de sesión en memoria…")
         return InMemorySessionService()
 
-def run_assistant_agent(client_id, session_id, message, use_mongodb=False, use_anthropic=False, use_openai=False):
-    """Ejecuta el agente Asistente IA para una interacción simple.
-    
-    Args:
-        client_id: ID del cliente.
-        session_id: ID de la sesión.
-        message: Mensaje del usuario.
-        use_mongodb: Si se debe usar MongoDB para persistencia.
-        use_anthropic: Si se debe usar Claude de Anthropic.
-        use_openai: Si se debe usar GPT de OpenAI.
-        
-    Returns:
-        La respuesta del agente.
+def run_assistant_agent(
+    client_id: str,
+    session_id: str,
+    message: str,
+    *,
+    use_supabase: bool = False,
+    use_anthropic: bool = False,
+    use_openai: bool = False,
+):
     """
-    # Inicializar el servicio de sesión
-    session_service = initialize_session_service(use_mongodb)
-    
-    # Crear el agente asistente
-    print(f"Creando agente asistente con use_anthropic={use_anthropic}, use_openai={use_openai}")
-    assistant_agent = create_assistant_only(client_id, use_anthropic=use_anthropic, use_openai=use_openai)
-    
-    # Loguear información del modelo
-    if hasattr(assistant_agent.model, 'model'):
-        print(f"Modelo seleccionado para el asistente: {assistant_agent.model.model}")
-    else:
-        print(f"Modelo seleccionado: {assistant_agent.model}")
-    
-    # Crear un runner para el agente
+    Ejecuta el agente Asistente IA para una interacción simple.
+
+    Args
+    ----
+    client_id      : ID del cliente.
+    session_id     : ID de la sesión.
+    message        : Mensaje del usuario.
+    use_supabase   : Si True y hay credenciales, persiste las sesiones en Supabase;
+                     de lo contrario usa memoria.
+    use_anthropic  : Si se debe usar Claude de Anthropic.
+    use_openai     : Si se debe usar GPT de OpenAI.
+
+    Returns
+    -------
+    str  – Respuesta del agente.
+    """
+    # 1) Servicio de sesión
+    session_service = initialize_session_service(use_supabase=use_supabase)
+
+    # 2) Crear agente asistente
+    print(f"Creando agente asistente (Anthropic={use_anthropic}, OpenAI={use_openai})")
+    assistant_agent = create_assistant_only(
+        client_id,
+        use_anthropic=use_anthropic,
+        use_openai=use_openai,
+    )
+
+    # 3) Loguear modelo
+    model_name = getattr(assistant_agent.model, "model", str(assistant_agent.model))
+    print(f"Modelo seleccionado para el asistente: {model_name}")
+
+    # 4) Runner
     runner = Runner(
         agent=assistant_agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Asegurarse de que existe la sesión
+
+    # 5) Asegurar sesión
     session = session_service.get_session(APP_NAME, client_id, session_id)
     if not session:
         session = session_service.create_session(
             app_name=APP_NAME,
             user_id=client_id,
             session_id=session_id,
-            state={
-                "client_id": client_id
-            }
+            state={"client_id": client_id},
         )
-    
-    # Crear contenido de mensaje
-    content = types.Content(role='user', parts=[types.Part(text=message)])
-    print(f"Enviando mensaje al agente: '{message[:50]}...'")
-    
-    # Ejecutar el agente y obtener respuesta
+
+    # 6) Construir contenido y enviar
+    content = types.Content(role="user", parts=[types.Part(text=message)])
+    print(f"Enviando mensaje al agente: '{message[:50]}…'")
+
     response = None
     try:
         for event in runner.run(
             user_id=client_id,
             session_id=session_id,
-            new_message=content
+            new_message=content,
         ):
             if event.is_final_response():
                 response = event.content
-        
-        # Extraer texto de la respuesta
+
+        # 7) Extraer texto
         response_text = ""
         if response and response.parts:
             for part in response.parts:
-                if hasattr(part, 'text') and part.text:
+                if getattr(part, "text", None):
                     response_text += part.text
-        
+
         print(f"Respuesta recibida - longitud: {len(response_text)}")
         return response_text
     except Exception as e:
-        error_msg = f"Error en run_assistant_agent: {str(e)}"
-        print(error_msg)
-        return f"Lo siento, hubo un error al comunicarse con el modelo. {str(e)}"
+        print(f"Error en run_assistant_agent: {e}")
+        return f"Lo siento, hubo un error al comunicarse con el modelo. {e}"
 
-def run_senior_agent(client_id, session_id, message, use_mongodb=False, use_anthropic=False, use_openai=False):
-    """Ejecuta el agente Senior IA para análisis financiero.
-    
-    Args:
-        client_id: ID del cliente.
-        session_id: ID de la sesión.
-        message: Mensaje del usuario.
-        use_mongodb: Si se debe usar MongoDB para persistencia.
-        use_anthropic: Si se debe usar Claude de Anthropic.
-        use_openai: Si se debe usar GPT de OpenAI.
-        
-    Returns:
-        La respuesta del agente.
+def run_senior_agent(
+    client_id: str,
+    session_id: str,
+    message: str,
+    *,
+    use_supabase: bool = False,
+    use_anthropic: bool = False,
+    use_openai: bool = False,
+):
     """
-    # Inicializar el servicio de sesión
-    session_service = initialize_session_service(use_mongodb)
-    
-    # Crear el agente senior
-    print(f"Creando agente senior con use_anthropic={use_anthropic}, use_openai={use_openai}")
+    Ejecuta el agente Senior IA para análisis financiero.
+
+    Args
+    ----
+    client_id      : ID del cliente.
+    session_id     : ID de la sesión.
+    message        : Mensaje del usuario.
+    use_supabase   : Si True y hay credenciales, persiste las sesiones en Supabase;
+                     de lo contrario usa memoria.
+    use_anthropic  : Si se debe usar Claude de Anthropic.
+    use_openai     : Si se debe usar GPT de OpenAI.
+
+    Returns
+    -------
+    str – Respuesta del agente.
+    """
+    # 1) Servicio de sesión
+    session_service = initialize_session_service(use_supabase=use_supabase)
+
+    # 2) Crear agente senior
+    print(f"Creando agente senior (Anthropic={use_anthropic}, OpenAI={use_openai})")
     senior_agent = create_senior_agent(use_anthropic=use_anthropic, use_openai=use_openai)
-    
-    # Loguear información del modelo
-    if hasattr(senior_agent.model, 'model'):
-        print(f"Modelo seleccionado para el senior: {senior_agent.model.model}")
-    else:
-        print(f"Modelo seleccionado: {senior_agent.model}")
-    
-    # Crear un runner para el agente
+
+    # 3) Loguear modelo
+    model_name = getattr(senior_agent.model, "model", str(senior_agent.model))
+    print(f"Modelo seleccionado para el senior: {model_name}")
+
+    # 4) Runner
     runner = Runner(
         agent=senior_agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Asegurarse de que existe la sesión
+
+    # 5) Asegurar sesión
     session = session_service.get_session(APP_NAME, client_id, session_id)
     if not session:
-        session = session_service.create_session(
+        session_service.create_session(
             app_name=APP_NAME,
             user_id=client_id,
             session_id=session_id,
-            state={
-                "client_id": client_id
-            }
+            state={"client_id": client_id},
         )
-    
-    # Crear contenido de mensaje
-    content = types.Content(role='user', parts=[types.Part(text=message)])
-    print(f"Enviando mensaje al agente: '{message[:50]}...'")
-    
-    # Ejecutar el agente y obtener respuesta
+
+    # 6) Construir contenido y enviar
+    content = types.Content(role="user", parts=[types.Part(text=message)])
+    print(f"Enviando mensaje al agente: '{message[:50]}…'")
+
     response = None
     try:
         for event in runner.run(
             user_id=client_id,
             session_id=session_id,
-            new_message=content
+            new_message=content,
         ):
             if event.is_final_response():
                 response = event.content
-        
-        # Extraer texto de la respuesta
+
+        # 7) Extraer texto
         response_text = ""
         if response and response.parts:
             for part in response.parts:
-                if hasattr(part, 'text') and part.text:
+                if getattr(part, "text", None):
                     response_text += part.text
-        
+
         print(f"Respuesta recibida - longitud: {len(response_text)}")
         return response_text
     except Exception as e:
-        error_msg = f"Error en run_senior_agent: {str(e)}"
-        print(error_msg)
-        return f"Lo siento, hubo un error al comunicarse con el modelo. {str(e)}"
+        print(f"Error en run_senior_agent: {e}")
+        return f"Lo siento, hubo un error al comunicarse con el modelo. {e}"
 
-def run_supervisor_agent(client_id, session_id, message, use_mongodb=False, use_anthropic=False, use_openai=False):
-    """Ejecuta el agente Supervisor IA para supervisión del proceso.
-    
-    Args:
-        client_id: ID del cliente.
-        session_id: ID de la sesión.
-        message: Mensaje del usuario.
-        use_mongodb: Si se debe usar MongoDB para persistencia.
-        use_anthropic: Si se debe usar Claude de Anthropic.
-        use_openai: Si se debe usar GPT de OpenAI.
-        
-    Returns:
-        La respuesta del agente.
+
+
+def run_supervisor_agent(
+    client_id: str,
+    session_id: str,
+    message: str,
+    *,
+    use_supabase: bool = False,
+    use_anthropic: bool = False,
+    use_openai: bool = False,
+):
     """
-    # Inicializar el servicio de sesión
-    session_service = initialize_session_service(use_mongodb)
-    
-    # Crear el agente supervisor
-    supervisor_agent = create_supervisor_agent(use_anthropic=use_anthropic, use_openai=use_openai)
-    
-    # Crear un runner para el agente
+    Ejecuta el agente Supervisor IA para supervisión del proceso.
+
+    Args
+    ----
+    client_id      : ID del cliente.
+    session_id     : ID de la sesión.
+    message        : Mensaje del usuario.
+    use_supabase   : Si True y existen credenciales, guarda sesiones en Supabase;
+                     de lo contrario usa memoria.
+    use_anthropic  : Si se debe usar Claude de Anthropic.
+    use_openai     : Si se debe usar GPT de OpenAI.
+
+    Returns
+    -------
+    str – Respuesta del agente.
+    """
+    # 1) Servicio de sesión
+    session_service = initialize_session_service(use_supabase=use_supabase)
+
+    # 2) Crear agente supervisor
+    supervisor_agent = create_supervisor_agent(
+        use_anthropic=use_anthropic,
+        use_openai=use_openai,
+    )
+
+    # 3) Runner
     runner = Runner(
         agent=supervisor_agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Asegurarse de que existe la sesión
+
+    # 4) Asegurar sesión
     session = session_service.get_session(APP_NAME, client_id, session_id)
     if not session:
-        session = session_service.create_session(
+        session_service.create_session(
             app_name=APP_NAME,
             user_id=client_id,
             session_id=session_id,
-            state={
-                "client_id": client_id
-            }
+            state={"client_id": client_id},
         )
-    
-    # Crear contenido de mensaje
-    content = types.Content(role='user', parts=[types.Part(text=message)])
-    
-    # Ejecutar el agente y obtener respuesta
+
+    # 5) Construir contenido y enviar
+    content = types.Content(role="user", parts=[types.Part(text=message)])
+
     response = None
     for event in runner.run(
         user_id=client_id,
         session_id=session_id,
-        new_message=content
+        new_message=content,
     ):
         if event.is_final_response():
             response = event.content
-    
-    # Extraer texto de la respuesta
+
+    # 6) Extraer texto de la respuesta
     response_text = ""
     if response and response.parts:
         for part in response.parts:
-            if hasattr(part, 'text') and part.text:
+            if getattr(part, "text", None):
                 response_text += part.text
-    
+
     return response_text
 
-def run_manager_agent(client_id, session_id, message, use_mongodb=False, use_anthropic=False, use_openai=False):
-    """Ejecuta el agente Gerente IA para toma de decisiones.
-    
-    Args:
-        client_id: ID del cliente.
-        session_id: ID de la sesión.
-        message: Mensaje del usuario.
-        use_mongodb: Si se debe usar MongoDB para persistencia.
-        use_anthropic: Si se debe usar Claude de Anthropic.
-        use_openai: Si se debe usar GPT de OpenAI.
-        
-    Returns:
-        La respuesta del agente.
+
+def run_manager_agent(
+    client_id: str,
+    session_id: str,
+    message: str,
+    *,
+    use_supabase: bool = False,
+    use_anthropic: bool = False,
+    use_openai: bool = False,
+):
     """
-    # Inicializar el servicio de sesión
-    session_service = initialize_session_service(use_mongodb)
-    
-    # Crear el agente gerente
-    manager_agent = create_manager_agent(use_anthropic=use_anthropic, use_openai=use_openai)
-    
-    # Crear un runner para el agente
+    Ejecuta el agente Gerente IA responsable de la toma de decisiones.
+
+    Args
+    ----
+    client_id      : ID del cliente.
+    session_id     : ID de la sesión.
+    message        : Mensaje del usuario.
+    use_supabase   : Si True y existen credenciales, persiste sesiones en Supabase;
+                     de lo contrario usa memoria.
+    use_anthropic  : Si se debe usar Claude de Anthropic.
+    use_openai     : Si se debe usar GPT de OpenAI.
+
+    Returns
+    -------
+    str – Respuesta del agente.
+    """
+    # 1) Servicio de sesión
+    session_service = initialize_session_service(use_supabase=use_supabase)
+
+    # 2) Crear agente gerente
+    manager_agent = create_manager_agent(
+        use_anthropic=use_anthropic,
+        use_openai=use_openai,
+    )
+
+    # 3) Runner
     runner = Runner(
         agent=manager_agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Asegurarse de que existe la sesión
-    session = session_service.get_session(APP_NAME, client_id, session_id)
-    if not session:
-        session = session_service.create_session(
+
+    # 4) Asegurar sesión
+    if not session_service.get_session(APP_NAME, client_id, session_id):
+        session_service.create_session(
             app_name=APP_NAME,
             user_id=client_id,
             session_id=session_id,
-            state={
-                "client_id": client_id
-            }
+            state={"client_id": client_id},
         )
-    
-    # Crear contenido de mensaje
-    content = types.Content(role='user', parts=[types.Part(text=message)])
-    
-    # Ejecutar el agente y obtener respuesta
+
+    # 5) Construir contenido y enviar
+    content = types.Content(role="user", parts=[types.Part(text=message)])
+
     response = None
     for event in runner.run(
         user_id=client_id,
         session_id=session_id,
-        new_message=content
+        new_message=content,
     ):
         if event.is_final_response():
             response = event.content
-    
-    # Extraer texto de la respuesta
+
+    # 6) Extraer texto de la respuesta
     response_text = ""
     if response and response.parts:
         for part in response.parts:
-            if hasattr(part, 'text') and part.text:
+            if getattr(part, "text", None):
                 response_text += part.text
-    
+
     return response_text
 
-def run_team_agent(client_id, session_id, message, use_mongodb=False, use_anthropic=False, use_openai=False):
-    """Ejecuta el equipo completo de agentes (asistente, senior, supervisor, manager) en secuencia.
-    
-    Args:
-        client_id: ID del cliente.
-        session_id: ID de la sesión.
-        message: Mensaje del usuario.
-        use_mongodb: Si se debe usar MongoDB para persistencia.
-        use_anthropic: Si se debe usar Claude de Anthropic.
-        use_openai: Si se debe usar GPT de OpenAI.
-        
-    Returns:
-        La respuesta final del equipo (después de pasar por todos los niveles).
+
+def run_team_agent(
+    client_id: str,
+    session_id: str,
+    message: str,
+    *,
+    use_supabase: bool = False,
+    use_anthropic: bool = False,
+    use_openai: bool = False,
+):
     """
-    # UPDATED: Enhanced implementation for multi-agent workflow
-    # Initialize the session service
-    session_service = initialize_session_service(use_mongodb)
-    
-    # Create the sequential workflow audit team
-    print(f"Creando equipo de auditoría con use_anthropic={use_anthropic}, use_openai={use_openai}")
-    workflow_agent, team_agents = create_workflow_audit_team(client_id, use_anthropic=use_anthropic, use_openai=use_openai)
-    
-    # Log the model information
-    agent_names = list(team_agents.keys())
-    print(f"Equipo creado con agentes: {', '.join(agent_names)}")
-    
-    # Create a runner for the workflow agent
+    Ejecuta el equipo completo de agentes (assistant → senior → supervisor → manager) en secuencia.
+
+    Args
+    ----
+    client_id      : ID del cliente.
+    session_id     : ID de la sesión.
+    message        : Mensaje del usuario.
+    use_supabase   : Si True y existen credenciales, las sesiones se guardan en Supabase;
+                     de lo contrario se usa memoria.
+    use_anthropic  : Si se debe usar Claude.
+    use_openai     : Si se debe usar GPT de OpenAI.
+
+    Returns
+    -------
+    str – Respuesta final del equipo.
+    """
+    # 1) Servicio de sesión
+    session_service = initialize_session_service(use_supabase=use_supabase)
+
+    # 2) Crear equipo de trabajo (workflow)
+    print(f"Creando equipo de auditoría (Anthropic={use_anthropic}, OpenAI={use_openai})")
+    workflow_agent, team_agents = create_workflow_audit_team(
+        client_id,
+        use_anthropic=use_anthropic,
+        use_openai=use_openai,
+    )
+    print("Equipo creado con agentes:", ", ".join(team_agents.keys()))
+
+    # 3) Runner
     runner = Runner(
         agent=workflow_agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Ensure the session exists
+
+    # 4) Asegurar sesión
     session = session_service.get_session(APP_NAME, client_id, session_id)
     if not session:
         session = session_service.create_session(
@@ -365,87 +432,78 @@ def run_team_agent(client_id, session_id, message, use_mongodb=False, use_anthro
             session_id=session_id,
             state={
                 "client_id": client_id,
-                "audit_process": "starting",  # Track the state of the audit process
-                "agent_responses": {}  # Store responses from each agent
-            }
+                "audit_process": "starting",
+                "agent_responses": {},
+            },
         )
-    
-    # Create message content
-    content = types.Content(role='user', parts=[types.Part(text=message)])
-    print(f"Sending message to audit team: '{message[:50]}...'")
-    
-    # Store for tracking the intermediate responses
+
+    # 5) Construir contenido y enviar
+    content = types.Content(role="user", parts=[types.Part(text=message)])
+    print(f"Enviando mensaje al equipo: '{message[:50]}…'")
+
     intermediate_responses = {}
-    
-    # Execute the workflow and get the final response
+    response = None
+    current_agent = None
+
     try:
-        response = None
-        current_agent = None
-        
-        # Process the message through the sequential agent workflow
         for event in runner.run(
             user_id=client_id,
             session_id=session_id,
-            new_message=content
+            new_message=content,
         ):
+            # — tool_call → identifica agente activo
             if event.is_tool_call():
-                # Identify which agent is currently processing
                 called_tool = event.tool_call.name
-                print(f"Tool call to: {called_tool}")
-                if called_tool == "assistant_agent":
-                    current_agent = "assistant"
-                elif called_tool == "senior_agent":
-                    current_agent = "senior"
-                elif called_tool == "supervisor_agent":
-                    current_agent = "supervisor"
-                elif called_tool == "manager_agent":
-                    current_agent = "manager"
-                
-                print(f"Procesando con agente: {current_agent}")
-            
+                current_agent = {
+                    "assistant_agent": "assistant",
+                    "senior_agent": "senior",
+                    "supervisor_agent": "supervisor",
+                    "manager_agent": "manager",
+                }.get(called_tool)
+                if current_agent:
+                    print(f"Procesando con agente: {current_agent}")
+
+            # — tool_response → guarda respuesta intermedia
             if event.is_tool_response() and current_agent:
-                # Get the response from the current agent
-                agent_response = event.tool_response.get('response', '')
+                agent_response = event.tool_response.get("response", "")
+                agent_text = ""
                 if isinstance(agent_response, types.Content) and agent_response.parts:
-                    agent_response_text = ""
                     for part in agent_response.parts:
-                        if hasattr(part, 'text') and part.text:
-                            agent_response_text += part.text
-                    
-                    intermediate_responses[current_agent] = agent_response_text
-                    print(f"Respuesta de {current_agent} guardada ({len(agent_response_text)} caracteres)")
-            
+                        if getattr(part, "text", None):
+                            agent_text += part.text
+                intermediate_responses[current_agent] = agent_text
+                print(f"Respuesta de {current_agent} guardada ({len(agent_text)} chars)")
+
+            # — final_response → termina workflow
             if event.is_final_response():
                 response = event.content
-        
-        # Extract text from the final response
+
+        # 6) Extraer texto final
         response_text = ""
         if response and response.parts:
             for part in response.parts:
-                if hasattr(part, 'text') and part.text:
+                if getattr(part, "text", None):
                     response_text += part.text
-        
-        # Update session state with all agent responses
+
+        # 7) Actualizar estado de sesión
         session = session_service.get_session(APP_NAME, client_id, session_id)
         if session:
-            session_state = session.state or {}
-            session_state["audit_process"] = "completed"
-            session_state["agent_responses"] = intermediate_responses
-            session_service.update_session(
-                app_name=APP_NAME,
-                user_id=client_id,
-                session_id=session_id,
-                state=session_state
-            )
-        
-        print(f"Final response received - length: {len(response_text)}")
+            session.state = {
+                **(session.state or {}),
+                "audit_process": "completed",
+                "agent_responses": intermediate_responses,
+            }
+            session_service.update_session(session)
+
+        print(f"Respuesta final recibida - longitud: {len(response_text)}")
         return response_text
+
     except Exception as e:
-        error_msg = f"Error in run_team_agent: {str(e)}"
-        print(error_msg)
         import traceback
+
         traceback.print_exc()
-        return f"Lo siento, hubo un error al procesar con el equipo de auditoría. {str(e)}"
+        return f"Lo siento, hubo un error al procesar con el equipo de auditoría. {e}"
+
 
 def find_available_port(start_port, max_attempts=100):
     """Busca un puerto disponible, comenzando desde start_port.
@@ -467,143 +525,201 @@ def find_available_port(start_port, max_attempts=100):
     return None
 
 def main():
-    """Función principal para iniciar la aplicación."""
-    parser = argparse.ArgumentParser(description="Plataforma de Auditoría con Agentes IA Jerárquicos")
-    
-    # Argumentos generales
-    parser.add_argument("--mode", type=str, choices=["interactive", "api"], default="interactive",
-                      help="Modo de ejecución: interactive para consola, api para servidor web")
-    parser.add_argument("--mongodb", action="store_true", help="Usar MongoDB para persistencia")
-    parser.add_argument("--anthropic", action="store_true", help="Usar Claude de Anthropic en lugar de Gemini")
-    parser.add_argument("--openai", action="store_true", help="Usar GPT de OpenAI en lugar de Gemini")
-    
-    # Argumentos para modo interactivo
-    parser.add_argument("--client", type=str, help="ID del cliente (para modo interactivo)")
-    parser.add_argument("--agent", type=str, choices=["assistant", "senior", "supervisor", "manager", "team", "workflow"],
-                      default="assistant", help="Tipo de agente a utilizar (para modo interactivo)")
-    
-    # Argumentos para modo API
-    parser.add_argument("--host", type=str, default=HOST, help="Host para el servidor API (para modo api)")
-    parser.add_argument("--port", type=int, default=PORT, help="Puerto para el servidor API (para modo api)")
-    
+    """Punto de entrada de la aplicación Audit-IA."""
+    import argparse
+    import os
+
+    parser = argparse.ArgumentParser(
+        description="Plataforma de Auditoría con Agentes IA Jerárquicos"
+    )
+
+    # ──────────── flags generales ────────────
+    parser.add_argument(
+        "--mode",
+        choices=["interactive", "api"],
+        default="interactive",
+        help="Modo de ejecución: 'interactive' para consola, 'api' para servidor web",
+    )
+    parser.add_argument(
+        "--supabase",
+        action="store_true",
+        help="Persistir sesiones en Supabase (en lugar de memoria)",
+    )
+    parser.add_argument(
+        "--anthropic",
+        action="store_true",
+        help="Usar Claude de Anthropic en lugar de Gemini",
+    )
+    parser.add_argument(
+        "--openai",
+        action="store_true",
+        help="Usar GPT de OpenAI en lugar de Gemini",
+    )
+
+    # ──────────── flags modo interactivo ────────────
+    parser.add_argument("--client", help="ID del cliente (solo modo interactive)")
+    parser.add_argument(
+        "--agent",
+        choices=["assistant", "senior", "supervisor", "manager", "team", "workflow"],
+        default="assistant",
+        help="Tipo de agente (modo interactive)",
+    )
+
+    # ──────────── flags modo API ────────────
+    parser.add_argument("--host", default=HOST, help="Host del servidor API")
+    parser.add_argument("--port", type=int, default=PORT, help="Puerto del servidor API")
+
     args = parser.parse_args()
-    
-    # Verificar que tenemos las API keys necesarias
+
+    # ──────────── comprobación de credenciales ────────────
     if not os.getenv("GOOGLE_API_KEY"):
         print("Error: GOOGLE_API_KEY no encontrada en variables de entorno o .env")
         exit(1)
-    
+
     if args.anthropic and not os.getenv("ANTHROPIC_API_KEY"):
         print("Error: ANTHROPIC_API_KEY no encontrada, pero se solicitó usar Anthropic")
         exit(1)
-    
+
     if args.openai and not os.getenv("OPENAI_API_KEY"):
         print("Error: OPENAI_API_KEY no encontrada, pero se solicitó usar OpenAI")
         exit(1)
-    
-    # Iniciar en modo interactivo o API según lo solicitado
+
+    if args.supabase:
+        if not (os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_KEY")):
+            print(
+                "Error: Se activó --supabase pero faltan SUPABASE_URL o "
+                "SUPABASE_SERVICE_KEY en el entorno"
+            )
+            exit(1)
+
+    # ──────────── despachar según modo ────────────
     if args.mode == "interactive":
         run_interactive_mode(args)
     else:
         run_api_mode(args)
 
+
 def run_interactive_mode(args):
     """Ejecuta la aplicación en modo interactivo por consola."""
     import uuid
     import time
-    
-    # Generar ID de cliente si no se proporciona
-    client_id = args.client or f"client_{uuid.uuid4().hex[:8]}"
+
+    # ─────────── IDs básicos ───────────
+    client_id  = args.client or f"client_{uuid.uuid4().hex[:8]}"
     session_id = f"session_{uuid.uuid4().hex[:8]}"
-    
+
     print(f"Iniciando modo interactivo con cliente: {client_id}")
-    print(f"Usando MongoDB: {args.mongodb}")
-    print(f"Usando Anthropic: {args.anthropic}")
-    print(f"Usando OpenAI: {args.openai}")
+    print(f"Persistencia en Supabase: {args.supabase}")
+    print(f"Usar Anthropic: {args.anthropic}")
+    print(f"Usar OpenAI: {args.openai}")
     print("---------------------------------------")
-    
-    # Inicializar el servicio de sesión
-    session_service = initialize_session_service(args.mongodb)
-    
-    # Crear el agente o equipo según lo solicitado
+
+    # ─────────── servicio de sesión ───────────
+    session_service = initialize_session_service(use_supabase=args.supabase)
+
+    # ─────────── selección de agente / equipo ───────────
     agent = None
-    team = None
-    
+    team  = None
+
     if args.agent == "assistant":
-        agent = create_assistant_only(client_id, use_anthropic=args.anthropic, use_openai=args.openai)
+        agent = create_assistant_only(
+            client_id,
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Asistente IA")
+
     elif args.agent == "senior":
-        agent = create_senior_agent(use_anthropic=args.anthropic, use_openai=args.openai)
+        agent = create_senior_agent(
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Senior IA")
+
     elif args.agent == "supervisor":
-        agent = create_supervisor_agent(use_anthropic=args.anthropic, use_openai=args.openai)
+        agent = create_supervisor_agent(
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Supervisor IA")
+
     elif args.agent == "manager":
-        agent = create_manager_agent(use_anthropic=args.anthropic, use_openai=args.openai)
+        agent = create_manager_agent(
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Gerente IA")
+
     elif args.agent == "team":
-        agent, team = create_audit_team(client_id, use_anthropic=args.anthropic, use_openai=args.openai)
+        agent, team = create_audit_team(
+            client_id,
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Equipo Jerárquico (iniciando con Gerente IA)")
+
     else:  # workflow
-        agent, team = create_workflow_audit_team(client_id, use_anthropic=args.anthropic, use_openai=args.openai)
+        agent, team = create_workflow_audit_team(
+            client_id,
+            use_anthropic=args.anthropic,
+            use_openai=args.openai,
+        )
         print("Agente: Equipo de Flujo de Trabajo")
-    
-    # Crear un runner para el agente
+
+    # ─────────── runner ───────────
     runner = Runner(
         agent=agent,
         app_name=APP_NAME,
-        session_service=session_service
+        session_service=session_service,
     )
-    
-    # Crear sesión con información del cliente
-    session = session_service.create_session(
+
+    # ─────────── crear sesión ───────────
+    session_service.create_session(
         app_name=APP_NAME,
         user_id=client_id,
         session_id=session_id,
         state={
             "client_id": client_id,
             "current_timestamp": time.time(),
-            "current_task_id": f"task_{uuid.uuid4().hex[:8]}"
-        }
+            "current_task_id": f"task_{uuid.uuid4().hex[:8]}",
+        },
     )
-    
-    # Bucle de interacción
+
+    # ─────────── loop de interacción ───────────
     print("\nEscribe 'salir' para terminar la sesión.")
     while True:
-        # Solicitar entrada al usuario
         user_input = input("\nTú: ")
-        
-        # Salir si se solicita
-        if user_input.lower() in ["salir", "exit", "quit"]:
+
+        if user_input.lower() in {"salir", "exit", "quit"}:
             print("\n¡Hasta luego!")
             break
-        
-        # Crear contenido de mensaje
-        content = types.Content(role='user', parts=[types.Part(text=user_input)])
-        
-        # Ejecutar el agente y obtener respuesta
+
+        content = types.Content(role="user", parts=[types.Part(text=user_input)])
+
         print("\nAgente: ", end="", flush=True)
-        
+        response = None
+
         for event in runner.run(
             user_id=client_id,
             session_id=session_id,
-            new_message=content
+            new_message=content,
         ):
-            # Para streaming de tokens
-            if hasattr(event, 'content_part_delta') and event.content_part_delta:
+            # Streaming token‐by‐token
+            if hasattr(event, "content_part_delta") and event.content_part_delta:
                 delta = event.content_part_delta
                 if delta.text:
                     print(delta.text, end="", flush=True)
-            
-            # Para respuesta final (en caso de no tener streaming)
+
+            # Respuesta final (en caso de no streaming)
             if event.is_final_response():
                 response = event.content
                 if response and response.parts:
                     for part in response.parts:
-                        if hasattr(part, 'text') and part.text and not hasattr(event, 'content_part_delta'):
+                        if getattr(part, "text", None) and not hasattr(event, "content_part_delta"):
                             print(part.text, end="", flush=True)
-        
-        print()  # Nueva línea después de la respuesta completa
+
+        print()  # salto de línea al final de cada respuesta
+
 
 def run_api_mode(args):
     """Ejecuta la aplicación en modo API con FastAPI."""
@@ -722,7 +838,7 @@ def run_api_mode(args):
 
     # Estado de la aplicación
     app_state = {
-        "session_service": initialize_session_service(args.mongodb),
+        "session_service": initialize_session_service(use_supabase=args.supabase),
         "use_anthropic": args.anthropic,
         "use_openai": args.openai,
         "active_teams": {},  # Almacena los equipos activos
@@ -904,7 +1020,7 @@ def run_api_mode(args):
         return True
     
     # Función para validar archivos antes de procesarlos
-    def validate_file(file: UploadFile) -> (bool, str):
+    def validate_file(file: UploadFile) -> (bool, str): # type: ignore
         # Comprobar el tamaño del archivo (máximo ~20MB)
         if file.size and file.size > 20 * 1024 * 1024:
             return False, "El archivo es demasiado grande. Límite: 20MB."
@@ -1030,7 +1146,7 @@ def run_api_mode(args):
                 client_id, 
                 session_id, 
                 full_message, 
-                args.mongodb, 
+                args.supabase, 
                 use_anthropic,
                 use_openai
             )
@@ -1348,7 +1464,7 @@ Mensaje actual del cliente: {message.message}
                 client_id=client_id, 
                 session_id=session_id, 
                 message=message.message,
-                use_mongodb=args.mongodb,
+                use_supabase=args.supabase,
                 use_anthropic=use_anthropic,
                 use_openai=use_openai
             )
@@ -1487,7 +1603,7 @@ Mensaje actual del cliente: {message.message}
 
     # Iniciar servidor
     print(f"Iniciando servidor API en {args.host}:{args.port}")
-    print(f"Usando MongoDB: {args.mongodb}")
+    print(f"Usando Supabase: {args.supabase}")
     print(f"Usando Anthropic: {args.anthropic}")
     try:
         uvicorn.run(app, host=args.host, port=args.port)

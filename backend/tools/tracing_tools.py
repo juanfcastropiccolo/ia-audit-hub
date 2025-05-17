@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional, List
 import time
 import json
 import os
-from auditoria_ia.config import TRACE_LOG_FILE, ENABLE_TRACING
+from backend.config import TRACE_LOG_FILE, ENABLE_TRACING
 
 def log_agent_action(
     action_type: str,

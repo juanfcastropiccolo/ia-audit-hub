@@ -12,7 +12,7 @@ load_dotenv()
 # Importar componentes de nuestra aplicación
 from config import APP_NAME
 from agents import create_audit_team, create_workflow_audit_team, create_assistant_only
-from utils import MongoDBSessionService
+from utils import SupabaseSessionService
 
 def demo_assistant_only():
     """Demostración simple con solo el agente Asistente IA."""

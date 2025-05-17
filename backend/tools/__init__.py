@@ -5,7 +5,7 @@ Herramientas específicas para los agentes de auditoría.
 # Importar y exponer las herramientas
 try:
     # Importaciones absolutas
-    from auditoria_ia.tools.audit_tools import (
+    from backend.tools.audit_tools import (
         BalanceSheetAuditor,
         TransactionVerifier,
         ComplianceChecker,
