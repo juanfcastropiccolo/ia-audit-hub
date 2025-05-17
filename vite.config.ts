@@ -61,6 +61,7 @@ export default defineConfig(({ mode }: ConfigEnv) => ({
   },
   // Add environment variables for development mode
   define: {
-    'process.env.SKIP_TYPESCRIPT_CHECK': mode === 'development' ? true : false
+    'process.env.SKIP_TYPESCRIPT_CHECK': mode === 'development' ? true : false,
+    'process.env.VITE_API_URL': JSON.stringify('http://localhost:8001')
   }
 }));

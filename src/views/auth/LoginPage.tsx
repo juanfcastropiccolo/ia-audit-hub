@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { getSupabaseStorageUrl } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 
 type UserRole = 'admin' | 'client';
 
@@ -23,10 +23,47 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>('/logo.png');
   const navigate = useNavigate();
-  
-  // Get logo URL from Supabase
-  const logoUrl = getSupabaseStorageUrl('pictures/trimmed_logo.png');
+
+  // Fetch logo URL from Supabase Storage with proper error handling
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        // Try to get file from public bucket first
+        let { data: publicBucketData } = await supabase
+          .storage
+          .from('public')
+          .download('logo.png');
+
+        if (publicBucketData) {
+          const url = URL.createObjectURL(publicBucketData);
+          setLogoUrl(url);
+          return;
+        }
+
+        // If not in public bucket, try pictures bucket
+        let { data: picturesBucketData } = await supabase
+          .storage
+          .from('pictures')
+          .download('trimmed_logo.png');
+
+        if (picturesBucketData) {
+          const url = URL.createObjectURL(picturesBucketData);
+          setLogoUrl(url);
+          return;
+        }
+
+        // If both attempts fail, log the issue but keep using local logo
+        console.log('Using local logo as fallback');
+      } catch (error) {
+        console.error('Error fetching logo from Supabase:', error);
+        // Keep using local logo as fallback
+      }
+    };
+
+    fetchLogo();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +122,16 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="fade-in">
             <div className="flex items-center">
-              <img src={logoUrl} alt="AUDIT-IA Logo" className="h-16 w-auto" />
+              <img 
+                src={logoUrl || '/logo.png'} 
+                alt="AUDIT-IA Logo" 
+                className="h-16 w-auto"
+                onError={(e) => {
+                  console.error('Error loading logo from Supabase, falling back to local logo');
+                  e.currentTarget.onerror = null; // Prevent infinite error loops
+                  setLogoUrl('/logo.png');
+                }}
+              />
             </div>
           </div>
           
@@ -111,8 +157,16 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       border border-gray-100 dark:border-gray-800 
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm animate-fade-in">
-          <div className="text-center mb-8 md:hidden">
-            <img src={logoUrl} alt="AUDIT-IA Logo" className="h-16 w-auto mx-auto mb-4" />
+          <div className="text-center mb-8 md:hidden">              <img 
+                src={logoUrl || '/logo.png'} 
+                alt="AUDIT-IA Logo" 
+                className="h-16 w-auto mx-auto mb-4"
+                onError={(e) => {
+                  console.error('Error loading logo from Supabase, falling back to local logo');
+                  e.currentTarget.onerror = null; // Prevent infinite error loops
+                  setLogoUrl('/logo.png');
+                }}
+              />
           </div>
           
           <div className="mb-8">
@@ -150,7 +204,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                           focus:ring-2 focus:ring-indigo focus:border-indigo 
                           dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
-                  placeholder="nombre@empresa.com"
+                  placeholder="name@company.com"
                   disabled={isLoading}
                 />
               </div>

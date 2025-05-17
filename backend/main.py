@@ -24,6 +24,17 @@ if parent_dir not in sys.path:
 # Cargar variables de entorno
 load_dotenv()
 
+# Importar FastAPI CORS
+from fastapi.middleware.cors import CORSMiddleware
+
+# Configurar origenes permitidos para CORS
+origins = [
+    "http://localhost:5173",  # Vite dev server default
+    "http://localhost:4173",  # Vite preview
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+]
+
 # Intentar importar los componentes directamente
 from backend.config import APP_NAME, HOST, PORT
 from backend.agents import (
@@ -40,6 +51,15 @@ from backend.utils import SupabaseSessionService, setup_logger
 log = setup_logger(__name__)
 
 app = FastAPI(title="API de Auditoría con Agentes IA", version="0.1.0")
+
+# Agregar middleware CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def initialize_session_service(*, use_supabase: bool = False):
     """

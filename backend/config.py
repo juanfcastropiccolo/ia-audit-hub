@@ -11,10 +11,11 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # ──────────────────────────── Supabase ─────────────────────────────
-SUPABASE_URL         = os.getenv("VITE_SUPABASE_URL", "")        # p. ej. "https://xyz.supabase.co"
-SUPABASE_ANON_KEY      = os.getenv("VITE_SUPABASE_ANON_KEY", "public")
-SUPABASE_SERVICE_KEY = os.getenv("VITE_SUPABASE_SERVICE_KEY", "")  # ⚠︎ usa la *service key* si es backend
-SUPABASE_SCHEMA = os.getenv("SUPABASE_SCHEMA", "public")  # ← Agregado para evitar error de import
+SUPABASE_URL = "https://wdhpfvgidwmporwuwtiy.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkaHBmdmdpZHdtcG9yd3V3dGl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MDUxMDksImV4cCI6MjA2Mjk4MTEwOX0.aX4j-goFOo_9c9rQ8rd96Hdxv0AKo8RQPqYUDf01TEM"
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkaHBmdmdpZHdtcG9yd3V3dGl5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQwNTEwOSwiZXhwIjoyMDYyOTgxMTA5fQ.XEFOF300eN56Cnxg-B3POlfRl3b3RmPwcM_D7S2htF8"
+SUPABASE_JWT_SECRET = "cYi4DhEipCrU5q577MptOOe/RWZEOJpMQi7czbtH7+nfDX8DciM39tSvoNwGrNRMhvwJEVLvFA/qULINV3Yp7Q=="
+SUPABASE_SCHEMA = "public"  # Schema expuesto
 
 # Configuración de la aplicación
 APP_NAME = "audit-ia"

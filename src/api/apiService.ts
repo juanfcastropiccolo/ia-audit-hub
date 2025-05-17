@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // API URL configuration - Dynamic port detection
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000`;
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8001`;
 
 // Models available
 export type LLMModel = 'gemini' | 'claude' | 'gpt4' | 'mock';
