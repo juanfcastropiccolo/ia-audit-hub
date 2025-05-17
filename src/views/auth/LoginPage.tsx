@@ -100,20 +100,20 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row w-screen h-screen overflow-hidden">
+    <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden">
       {/* Left side - Brand panel with gradient */}
-      <div className="hidden md:flex md:flex-col md:basis-1/2 md:min-w-[280px] relative overflow-hidden bg-gradient-to-br from-indigo via-purple to-lavender">
+      <div className="hidden md:flex md:flex-col md:w-1/2 min-w-[280px] max-w-[50%] relative bg-gradient-to-br from-indigo via-purple to-lavender">
         <div className="absolute inset-0">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple/20 blur-3xl animate-pulse"></div>
           <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-softYellow/20 blur-3xl"></div>
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between p-8 md:p-12 w-full h-full">
+        <div className="relative z-10 flex flex-col justify-between p-6 md:p-10 h-full">
           <div className="flex items-center">
             <img 
               src={logoUrl} 
               alt="AUDIT-IA Logo" 
-              className="h-12 md:h-16 max-w-[160px] w-auto object-contain"
+              className="h-10 md:h-16 max-w-[160px] w-auto object-contain"
               aria-label="AUDIT-IA company logo"
               onError={(e) => {
                 console.error('Error loading logo from Supabase, falling back to local logo');
@@ -124,10 +124,10 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
           
           <div className="z-10 flex flex-col space-y-4 md:space-y-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-white">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white">
               {t('ai_audit_platform')}
             </h1>
-            <p className="text-lg md:text-xl text-gray-100 max-w-md">
+            <p className="text-base md:text-lg lg:text-xl text-gray-100 max-w-md">
               {t('ai_audit_description')}
             </p>
             <div className="h-1 w-20 bg-softYellow rounded"></div>
@@ -140,26 +140,27 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
       </div>
       
       {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-white dark:bg-gray-900">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-gray-900">
+        {/* Logo for mobile view only */}
+        <div className="md:hidden absolute top-0 left-0 w-full flex justify-center py-6">
+          <img 
+            src={logoUrl} 
+            alt="AUDIT-IA Logo" 
+            className="h-12 w-auto object-contain"
+            aria-label="AUDIT-IA company logo - mobile view"
+            onError={(e) => {
+              console.error('Error loading logo from Supabase, falling back to local logo');
+              e.currentTarget.onerror = null; // Prevent infinite error loops
+              setLogoUrl('/logo.png');
+            }}
+          />
+        </div>
+
         <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl transition-all duration-300 
                       border border-gray-100 dark:border-gray-800 
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
-                      bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
-          {/* Logo for mobile view only */}
-          <div className="text-center mb-6 md:hidden">
-            <img 
-              src={logoUrl} 
-              alt="AUDIT-IA Logo" 
-              className="h-12 w-auto mx-auto mb-4 object-contain"
-              aria-label="AUDIT-IA company logo - mobile view"
-              onError={(e) => {
-                console.error('Error loading logo from Supabase, falling back to local logo');
-                e.currentTarget.onerror = null; // Prevent infinite error loops
-                setLogoUrl('/logo.png');
-              }}
-            />
-          </div>
-          
+                      bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm
+                      md:mt-0 mt-16">
           <div className="mb-6">
             <h2 className="text-2xl sm:text-3xl font-bold text-indigo dark:text-lavender">
               {t('welcome_back')}

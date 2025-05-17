@@ -15,6 +15,7 @@ AUDIT-IA es una plataforma de auditoría que utiliza inteligencia artificial par
 - Optimized mobile layout with stacked design
 - Improved logo scaling and positioning
 - Ensured accessibility with proper ARIA labels
+- Fixed content overflow issues with proper container constraints
 
 ## Requisitos previos
 
