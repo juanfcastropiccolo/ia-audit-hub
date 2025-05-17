@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
@@ -30,18 +31,20 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   useEffect(() => {
     const fetchLogo = async () => {
       try {
+        // First try to get the logo from pictures bucket
         const { data: publicUrl } = supabase
           .storage
           .from('pictures')
           .getPublicUrl('trimmed_logo.png');
         
         if (publicUrl?.publicUrl) {
-          setLogoUrl(publicUrl.publicUrl);
+          setLogoUrl(publicUrl.publicUrl + '?v=' + new Date().getTime());
+          console.log('Using Supabase logo from URL:', publicUrl.publicUrl);
           return;
         }
         
-        // If no public URL, try to use the old method as fallback
-        console.log('Using local logo as fallback');
+        // If no public URL, use the local logo as fallback
+        console.log('No Supabase URL found, using local logo as fallback');
       } catch (error) {
         console.error('Error fetching logo from Supabase:', error);
         // Keep using local logo as fallback

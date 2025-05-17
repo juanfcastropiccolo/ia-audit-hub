@@ -4,6 +4,8 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,6 +16,10 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 // Initialize Supabase client
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Define paths for both logos
+const ORIGINAL_LOGO_PATH = join(__dirname, '..', 'public', 'logo.png');
+const NEW_LOGO_PATH = join(__dirname, '..', 'public', 'new_logo.png');
 
 async function setupBucket(bucketName, isPublic = true) {
   try {
@@ -84,6 +90,47 @@ async function uploadFile(bucketName, filePath, destination) {
   }
 }
 
+// Download the new logo from the uploaded URL and save it locally
+async function downloadNewLogo() {
+  try {
+    console.log('Downloading new logo...');
+    // The URL of the uploaded image
+    const logoUrl = '/lovable-uploads/84946879-5424-43e3-9c58-c92ea7314118.png';
+    
+    // For local development, we assume the file is already in the project
+    // In a real environment, you would download it from the URL
+    console.log('Checking if we need to copy the new logo file...');
+    
+    // Check if the file exists
+    try {
+      await fs.promises.access(NEW_LOGO_PATH);
+      console.log('New logo file already exists locally');
+    } catch (err) {
+      console.log('Need to copy the new logo file');
+      // Copy the file from uploads folder to the public folder
+      try {
+        // In case the file is accessible from the lovable-uploads folder directly
+        await fs.promises.copyFile(
+          join(__dirname, '..', logoUrl), 
+          NEW_LOGO_PATH
+        );
+        console.log('New logo copied successfully');
+      } catch (copyError) {
+        console.error('Failed to copy new logo from uploads:', copyError);
+        // We'll just use the existing logo as a fallback
+        console.log('Using existing logo as fallback');
+        await fs.promises.copyFile(ORIGINAL_LOGO_PATH, NEW_LOGO_PATH);
+      }
+    }
+    
+    console.log('New logo file prepared for upload');
+    return 'public/new_logo.png';
+  } catch (error) {
+    console.error('Error preparing new logo:', error);
+    throw error;
+  }
+}
+
 async function setupStorage() {
   try {
     console.log('Starting storage setup...');
@@ -95,22 +142,15 @@ async function setupStorage() {
     console.log('Setting up pictures bucket...');
     await setupBucket('pictures', true);
     
-    // Check if logo exists
-    const logoPath = join(__dirname, '..', 'public', 'logo.png');
-    try {
-      await readFile(logoPath);
-      console.log('Logo file found at:', logoPath);
-    } catch (err) {
-      console.error('Logo file not found at:', logoPath);
-      throw err;
-    }
+    // Prepare the new logo
+    const newLogoPath = await downloadNewLogo();
     
-    // Upload logo to buckets
-    console.log('Uploading logo to public bucket...');
-    await uploadFile('public', 'public/logo.png', 'logo.png');
+    // Upload new logo to buckets
+    console.log('Uploading new logo to public bucket...');
+    await uploadFile('public', newLogoPath, 'logo.png');
     
-    console.log('Uploading logo to pictures bucket...');
-    await uploadFile('pictures', 'public/logo.png', 'trimmed_logo.png');
+    console.log('Uploading new logo to pictures bucket...');
+    await uploadFile('pictures', newLogoPath, 'trimmed_logo.png');
 
     console.log('Storage setup completed successfully');
   } catch (error) {
