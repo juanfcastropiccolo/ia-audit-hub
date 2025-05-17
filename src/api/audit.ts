@@ -1,6 +1,6 @@
 
 import api from "./index";
-import { AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
 
 // Types
 export interface StartSessionPayload {
