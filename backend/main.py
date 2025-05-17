@@ -13,6 +13,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from collections import deque
+from fastapi import FastAPI
 
 # Add the parent directory to sys.path to ensure imports work
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +39,8 @@ from backend.agents import (
 from backend.utils import SupabaseSessionService, setup_logger
 log = setup_logger(__name__)
 
+app = FastAPI(title="API de Auditoría con Agentes IA", version="0.1.0")
+
 def initialize_session_service(*, use_supabase: bool = False):
     """
     Crea y devuelve el servicio de sesión.
@@ -49,8 +52,8 @@ def initialize_session_service(*, use_supabase: bool = False):
         de lo contrario se cae al servicio en memoria.
     """
 
-    supabase_url   = os.getenv("SUPABASE_URL")
-    supabase_key   = os.getenv("SUPABASE_SERVICE_KEY")
+    supabase_url   = os.getenv("VITE_SUPABASE_URL")
+    supabase_key   = os.getenv("VITE_SUPABASE_SERVICE_KEY")
 
     if use_supabase and supabase_url and supabase_key:
         log.info("Inicializando servicio de sesión con Supabase…")
@@ -848,7 +851,7 @@ def run_api_mode(args):
         "audit_log": deque(maxlen=MAX_AUDIT_LOG_ENTRIES) # UPDATED: Use deque for audit_log
     }
     
-    # UPDATED: Endpoint para cambiar el modelo de IA
+    # UPDATED: Endpoint para cambiar la configuración del modelo de IA
     @app.post("/api/settings/model", response_model=ModelSettingsResponse)
     async def change_model_settings(settings: ModelSettings):
         """Endpoint para cambiar la configuración del modelo de IA."""
@@ -1617,4 +1620,4 @@ Mensaje actual del cliente: {message.message}
 
 if __name__ == "__main__":
     # Ejecutar la función principal
-    main() 
+    main()

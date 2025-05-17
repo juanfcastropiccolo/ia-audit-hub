@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import AdminLayout from './layouts/AdminLayout';
 import ClientLayout from './layouts/ClientLayout';
@@ -17,8 +17,9 @@ type UserRole = 'admin' | 'client';
 // RequireAuth component to protect routes
 function RequireAuth({ children, allowedRole }: { children: JSX.Element, allowedRole: UserRole | null }) {
   const { user, loading } = useAuth();
-  
-  // Get stored user role from localStorage since Supabase doesn't store this
+  const location = useLocation();
+
+  // Get stored user role from localStorage
   const getUserRole = (): UserRole | undefined => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -27,29 +28,30 @@ function RequireAuth({ children, allowedRole }: { children: JSX.Element, allowed
         return parsed.role as UserRole;
       } catch (e) {
         console.error("Failed to parse user role from localStorage", e);
+        return undefined;
       }
     }
     return undefined;
   };
-  
+
   const userRole = getUserRole();
-  
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">
       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
     </div>;
   }
-  
-  if (!user) {
-    // Not authenticated, redirect to login
-    return <Navigate to="/login" replace />;
+
+  if (!user || !userRole) {
+    // Not authenticated or no role, redirect to login with return URL
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
+
   if (allowedRole && userRole !== allowedRole) {
     // Not authorized for this role, redirect to appropriate section
     return <Navigate to={userRole === 'admin' ? '/admin/clients' : '/chat'} replace />;
   }
-  
+
   // Authenticated and authorized
   return children;
 }
@@ -58,24 +60,41 @@ function AppRoutes() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const { user, loading } = useAuth();
 
+  // Limpia localStorage si la sesión de Supabase no es válida
+  useEffect(() => {
+    // Debugging redirection issue
+    console.log("Auth state:", { user, userRole });
+
+    if (!user) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setUserRole(null);
+    }
+  }, [user]);
+
   const handleLoginSuccess = (role: UserRole) => {
     setUserRole(role);
   };
 
-  // Initialize userRole from localStorage
+  // Initialize userRole from localStorage only if we have a valid user
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        if (parsed.role) {
-          setUserRole(parsed.role as UserRole);
+    if (user) {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed.role) {
+            setUserRole(parsed.role as UserRole);
+          }
+        } catch (e) {
+          console.error("Failed to parse user from localStorage", e);
+          setUserRole(null);
         }
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
+      } else {
+        setUserRole(null);
       }
     }
-  }, []);
+  }, [user]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">
@@ -87,8 +106,8 @@ function AppRoutes() {
     <Routes>
       {/* Login route (accessible to all) */}
       <Route path="/login" element={
-        user ? (
-          <Navigate to={userRole === 'admin' ? '/admin/clients' : '/chat'} />
+        user && userRole ? (
+          <Navigate to={userRole === 'admin' ? '/admin/clients' : '/chat'} replace />
         ) : (
           <AuthLayout>
             <LoginPage onLoginSuccess={handleLoginSuccess} />
@@ -109,24 +128,20 @@ function AppRoutes() {
       
       {/* Client chat route (requires client role) */}
       <Route path="/chat" element={
-        !user ? <Navigate to="/login" replace /> : (
-          <RequireAuth allowedRole="client">
-            <ClientLayout>
-              <ChatProvider>
-                <ChatPage />
-              </ChatProvider>
-            </ClientLayout>
-          </RequireAuth>
-        )
+        <RequireAuth allowedRole="client">
+          <ClientLayout>
+            <ChatProvider>
+              <ChatPage />
+            </ChatProvider>
+          </ClientLayout>
+        </RequireAuth>
       } />
       
-      {/* Default redirect to login, login page will handle further redirection if authenticated */}
+      {/* Default redirect to login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       
-      {/* Catch-all route for 404 also redirects to login */}
-      <Route path="*" element={
-        <Navigate to="/login" replace />
-      } />
+      {/* Catch-all route for 404 redirects to login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

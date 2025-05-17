@@ -11,9 +11,10 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # ──────────────────────────── Supabase ─────────────────────────────
-SUPABASE_URL         = os.getenv("SUPABASE_URL", "")        # p. ej. "https://xyz.supabase.co"
-SUPABASE_ANON_KEY      = os.getenv("SUPABASE_ANON_KEY", "public")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")  # ⚠︎ usa la *service key* si es backend
+SUPABASE_URL         = os.getenv("VITE_SUPABASE_URL", "")        # p. ej. "https://xyz.supabase.co"
+SUPABASE_ANON_KEY      = os.getenv("VITE_SUPABASE_ANON_KEY", "public")
+SUPABASE_SERVICE_KEY = os.getenv("VITE_SUPABASE_SERVICE_KEY", "")  # ⚠︎ usa la *service key* si es backend
+SUPABASE_SCHEMA = os.getenv("SUPABASE_SCHEMA", "public")  # ← Agregado para evitar error de import
 
 # Configuración de la aplicación
 APP_NAME = "audit-ia"
@@ -55,4 +56,4 @@ DEFAULT_ASSISTANT_MODEL = LiteLlm(model=GEMINI_FLASH_MODEL)
 
 # Configuración de trazabilidad
 ENABLE_TRACING = True
-TRACE_LOG_FILE = "audit_trace.log" 
+TRACE_LOG_FILE = "audit_trace.log"
