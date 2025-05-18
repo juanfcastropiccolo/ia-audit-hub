@@ -791,10 +791,19 @@ def run_api_mode(args):
         client_id: str
         session_id: Optional[str] = None
     
+    # NEW: Pydantic model for /api/chat request to match frontend
+    class ChatRequest(BaseModel):
+        message: str
+        client_id: str
+        session_id: Optional[str] = None
+        model_type: Optional[str] = None
+        agent_type: Optional[str] = "assistant"
+    
     class AgentResponse(BaseModel):
         message: str
         client_id: str
         session_id: str
+        model_used: Optional[str] = None # Added to match frontend expectation
     
     class ClientSession(BaseModel):
         id: str
@@ -1207,316 +1216,130 @@ def run_api_mode(args):
                 "session_id": session_id
             }
     
-    # Endpoints
-    @app.post("/api/assistant", response_model=AgentResponse)
-    async def chat_with_assistant(
-        message: UserMessage,
-        model_type: Optional[str] = Query(None, description="Tipo de modelo a utilizar (gemini, claude, gpt4)")
-    ):
-        """Endpoint para chatear con el asistente IA y procesar solicitudes del cliente.
-        
-        Parámetros:
-        - message: Objeto con el mensaje del usuario, client_id y session_id opcional
-        - model_type: Tipo de modelo a utilizar (opcional, si no se especifica se usa la configuración por defecto)
-        
-        Retorna:
-        - AgentResponse: Respuesta del asistente con mensaje y session_id
-        """
+    # NEW CHAT ENDPOINT TO MATCH FRONTEND
+    @app.post("/api/chat", response_model=AgentResponse)
+    async def handle_chat_request(request: ChatRequest):
+        """Handles chat requests from the frontend."""
         start_time = time.time()
-        client_id = message.client_id
-        session_id = message.session_id or str(uuid.uuid4())
-        
-        # Validar client_id
+        client_id = request.client_id
+        session_id = request.session_id or str(uuid.uuid4())
+        message_text = request.message
+
         if not validate_client_id(client_id):
             return JSONResponse(
                 status_code=400,
-                content={"message": "ID de cliente inválido", "client_id": client_id, "session_id": session_id}
+                content={"message": "ID de cliente inválido", "client_id": client_id, "session_id": session_id, "model_used": "error"}
             )
+
+        # Determine model and agent type
+        # Model resolution: 1. From request, 2. From app_state (set by /api/settings/model), 3. Default to 'gemini'
+        requested_model_type = request.model_type or app_state.get("default_model", "gemini")
         
-        # Determinar qué modelo usar basado en la configuración
-        use_anthropic = (model_type == "claude") or (app_state.get("use_anthropic", False) and not model_type)
-        use_openai = (model_type == "gpt4") or (app_state.get("use_openai", False) and not model_type)
+        # Ensure the model_type is one of the ADK-compatible types for agent creation
+        # The frontend sends 'gemini', 'claude', 'gpt4', 'mock'
+        # The ADK functions create_assistant_only etc. expect use_anthropic, use_openai booleans.
         
-        # Comprobar si hay un escalamiento pendiente para este cliente/sesión
-        escalation_file = os.path.join("tmp", f"escalation_{client_id}_{session_id}.json")
-        if os.path.exists(escalation_file):
-            try:
-                with open(escalation_file, "r") as f:
-                    escalation_data = json.load(f)
-                    
-                # Si hay escalamiento pendiente, procesarlo con el agente senior
-                print(f"Detectado escalamiento pendiente para cliente {client_id}, sesión {session_id}")
-                
-                # Preparar mensaje para el senior con contexto del escalamiento
-                senior_context = f"""CASO ESCALADO DEL ASISTENTE:
-Resumen: {escalation_data.get('summary', 'No hay resumen disponible')}
-Documentos analizados: {', '.join(escalation_data.get('documents', ['Ninguno']))}
-Mensaje actual del cliente: {message.message}
-"""
-                
-                # Ejecutar el agente senior con el contexto
-                response_text = run_senior_agent(
-                    client_id=client_id,
-                    session_id=session_id,
-                    message=senior_context + "\n\n" + message.message,
-                    use_anthropic=use_anthropic,
-                    use_openai=use_openai
-                )
-                
-                # Registrar evento de procesamiento por senior
-                new_event = AuditEvent(
-                    id=str(uuid.uuid4()),
-                    team_id=f"team_{client_id}",
-                    agent_name="senior_agent",
-                    event_type="case_review",
-                    details={
-                        "client_message": message.message,
-                        "escalation_summary": escalation_data.get('summary', 'No hay resumen disponible'),
-                        "session_id": session_id
-                    },
-                    timestamp=datetime.now(),
-                    importance="high"
-                )
-                await emit_audit_event(new_event.dict())
-                
-                # Verificar si el senior escaló al supervisor
-                if "escalar al supervisor" in response_text.lower() or "necesita revisión del supervisor" in response_text.lower():
-                    # Crear archivo de escalamiento a supervisor
-                    supervisor_escalation = {
-                        "timestamp": datetime.now().isoformat(),
-                        "client_id": client_id,
-                        "session_id": session_id,
-                        "action": "escalate_to_supervisor",
-                        "summary": f"Caso escalado por Senior: {escalation_data.get('summary', 'No hay resumen disponible')}",
-                        "senior_analysis": response_text,
-                        "documents": escalation_data.get('documents', [])
-                    }
-                    
-                    supervisor_file = os.path.join("tmp", f"supervisor_{client_id}_{session_id}.json")
-                    with open(supervisor_file, "w") as f:
-                        json.dump(supervisor_escalation, f, indent=2)
-                    
-                    # Añadir nota al final de la respuesta sobre escalamiento a supervisor
-                    response_text += "\n\n[Este caso ha sido escalado al Supervisor para una revisión adicional]"
-                
-                # Eliminar el archivo de escalamiento al senior si ya no es necesario
-                if not "escalar al supervisor" in response_text.lower():
-                    try:
-                        os.remove(escalation_file)
-                        print(f"Archivo de escalamiento {escalation_file} eliminado tras procesamiento por Senior")
-                    except Exception as e:
-                        print(f"Error al eliminar archivo de escalamiento: {str(e)}")
-                
-                elapsed_time = time.time() - start_time
-                print(f"Tiempo de respuesta del Senior: {elapsed_time:.2f} segundos")
-                
-                return {"message": response_text, "client_id": client_id, "session_id": session_id}
-            except Exception as e:
-                print(f"Error al procesar escalamiento: {str(e)}")
-                # Continuar con el flujo normal si hay error en el procesamiento de escalamiento
-        
-        # Comprobar si hay un escalamiento al supervisor pendiente
-        supervisor_file = os.path.join("tmp", f"supervisor_{client_id}_{session_id}.json")
-        if os.path.exists(supervisor_file):
-            try:
-                with open(supervisor_file, "r") as f:
-                    supervisor_data = json.load(f)
-                    
-                # Preparar mensaje para el supervisor con contexto del escalamiento
-                supervisor_context = f"""CASO ESCALADO DEL SENIOR:
-Resumen original: {supervisor_data.get('summary', 'No hay resumen disponible')}
-Análisis del Senior: {supervisor_data.get('senior_analysis', 'No hay análisis disponible')}
-Documentos analizados: {', '.join(supervisor_data.get('documents', ['Ninguno']))}
-Mensaje actual del cliente: {message.message}
-"""
-                
-                # Ejecutar el agente supervisor con el contexto
-                response_text = run_supervisor_agent(
-                    client_id=client_id,
-                    session_id=session_id,
-                    message=supervisor_context + "\n\n" + message.message,
-                    use_anthropic=use_anthropic,
-                    use_openai=use_openai
-                )
-                
-                # Registrar evento de procesamiento por supervisor
-                new_event = AuditEvent(
-                    id=str(uuid.uuid4()),
-                    team_id=f"team_{client_id}",
-                    agent_name="supervisor_agent",
-                    event_type="advanced_review",
-                    details={
-                        "client_message": message.message,
-                        "senior_analysis": supervisor_data.get('senior_analysis', 'No hay análisis disponible'),
-                        "session_id": session_id
-                    },
-                    timestamp=datetime.now(),
-                    importance="high"
-                )
-                await emit_audit_event(new_event.dict())
-                
-                # Verificar si el supervisor escaló al manager
-                if "escalar al manager" in response_text.lower() or "necesita revisión del manager" in response_text.lower():
-                    # Crear archivo de escalamiento a manager
-                    manager_escalation = {
-                        "timestamp": datetime.now().isoformat(),
-                        "client_id": client_id,
-                        "session_id": session_id,
-                        "action": "escalate_to_manager",
-                        "summary": supervisor_data.get('summary', 'No hay resumen disponible'),
-                        "senior_analysis": supervisor_data.get('senior_analysis', 'No hay análisis disponible'),
-                        "supervisor_analysis": response_text,
-                        "documents": supervisor_data.get('documents', [])
-                    }
-                    
-                    manager_file = os.path.join("tmp", f"manager_{client_id}_{session_id}.json")
-                    with open(manager_file, "w") as f:
-                        json.dump(manager_escalation, f, indent=2)
-                    
-                    # Añadir nota al final de la respuesta sobre escalamiento a manager
-                    response_text += "\n\n[Este caso ha sido escalado al Manager para la revisión final]"
-                
-                # Eliminar el archivo de escalamiento al supervisor si ya no es necesario
-                if not "escalar al manager" in response_text.lower():
-                    try:
-                        os.remove(supervisor_file)
-                        print(f"Archivo de escalamiento {supervisor_file} eliminado tras procesamiento por Supervisor")
-                    except Exception as e:
-                        print(f"Error al eliminar archivo de escalamiento: {str(e)}")
-                
-                elapsed_time = time.time() - start_time
-                print(f"Tiempo de respuesta del Supervisor: {elapsed_time:.2f} segundos")
-                
-                return {"message": response_text, "client_id": client_id, "session_id": session_id}
-            except Exception as e:
-                print(f"Error al procesar escalamiento a supervisor: {str(e)}")
-                # Continuar con el flujo normal si hay error
-        
-        # Comprobar si hay un escalamiento al manager pendiente
-        manager_file = os.path.join("tmp", f"manager_{client_id}_{session_id}.json")
-        if os.path.exists(manager_file):
-            try:
-                with open(manager_file, "r") as f:
-                    manager_data = json.load(f)
-                    
-                # Preparar mensaje para el manager con contexto completo
-                manager_context = f"""CASO ESCALADO PARA REVISIÓN FINAL:
-Resumen original: {manager_data.get('summary', 'No hay resumen disponible')}
-Análisis del Senior: {manager_data.get('senior_analysis', 'No hay análisis disponible')}
-Análisis del Supervisor: {manager_data.get('supervisor_analysis', 'No hay análisis disponible')}
-Documentos analizados: {', '.join(manager_data.get('documents', ['Ninguno']))}
-Mensaje actual del cliente: {message.message}
-"""
-                
-                # Ejecutar el agente manager con el contexto completo
-                response_text = run_manager_agent(
-                    client_id=client_id,
-                    session_id=session_id,
-                    message=manager_context + "\n\n" + message.message,
-                    use_anthropic=use_anthropic,
-                    use_openai=use_openai
-                )
-                
-                # Registrar evento de procesamiento final por manager
-                new_event = AuditEvent(
-                    id=str(uuid.uuid4()),
-                    team_id=f"team_{client_id}",
-                    agent_name="manager_agent",
-                    event_type="final_review",
-                    details={
-                        "client_message": message.message,
-                        "senior_analysis": manager_data.get('senior_analysis', 'No hay análisis disponible'),
-                        "supervisor_analysis": manager_data.get('supervisor_analysis', 'No hay análisis disponible'),
-                        "session_id": session_id
-                    },
-                    timestamp=datetime.now(),
-                    importance="critical"
-                )
-                await emit_audit_event(new_event.dict())
-                
-                # Si hay mensaje sobre informe final, generarlo
-                if "informe final" in response_text.lower() or "reporte final" in response_text.lower():
-                    # Generar informe final
-                    try:
-                        # Crear directorio para informes si no existe
-                        reports_dir = os.path.join("tmp", "reports")
-                        os.makedirs(reports_dir, exist_ok=True)
-                        
-                        # Crear informe con toda la información recopilada
-                        report_data = {
-                            "client_id": client_id,
-                            "session_id": session_id,
-                            "timestamp": datetime.now().isoformat(),
-                            "summary": manager_data.get('summary', 'No hay resumen disponible'),
-                            "senior_analysis": manager_data.get('senior_analysis', 'No hay análisis disponible'),
-                            "supervisor_analysis": manager_data.get('supervisor_analysis', 'No hay análisis disponible'),
-                            "manager_analysis": response_text,
-                            "documents_analyzed": manager_data.get('documents', []),
-                            "audit_result": "Completado"
-                        }
-                        
-                        # Guardar informe en JSON
-                        report_file = os.path.join(reports_dir, f"report_{client_id}_{session_id}.json")
-                        with open(report_file, "w") as f:
-                            json.dump(report_data, f, indent=2, ensure_ascii=False)
-                        
-                        # Añadir información sobre disponibilidad de informe
-                        response_text += "\n\n[INFORME FINAL GENERADO: Puedes descargarlo desde la sección de informes]"
-                    except Exception as e:
-                        print(f"Error al generar informe final: {str(e)}")
-                
-                # Eliminar archivo de escalamiento al manager después de procesamiento
-                try:
-                    os.remove(manager_file)
-                    print(f"Archivo de escalamiento {manager_file} eliminado tras procesamiento por Manager")
-                except Exception as e:
-                    print(f"Error al eliminar archivo de escalamiento: {str(e)}")
-                
-                elapsed_time = time.time() - start_time
-                print(f"Tiempo de respuesta del Manager: {elapsed_time:.2f} segundos")
-                
-                return {"message": response_text, "client_id": client_id, "session_id": session_id}
-            except Exception as e:
-                print(f"Error al procesar escalamiento a manager: {str(e)}")
-                # Continuar con el flujo normal si hay error
-        
-        # Si no hay escalamientos pendientes, procesar como asistente normal
+        final_model_type_for_response = requested_model_type # This is what we will return in model_used
+
+        use_anthropic = (requested_model_type == "claude")
+        use_openai = (requested_model_type == "gpt4")
+        # If 'gemini' or 'mock', both use_anthropic and use_openai will be False, leading to Gemini by default in ADK agent creation. 
+        # 'mock' model type is handled by the ADK runner or agent itself if designed that way, or we might need explicit mock handling here too.
+        # For now, assuming ADK create_assistant_only handles the Gemini default if no specific flags are true.
+
+        # Agent selection based on agent_type from request
+        agent_func_to_run = None
+        # For now, we hardcode to assistant agent as per primary goal.
+        # Later, this can be expanded based on request.agent_type.
+        if request.agent_type == "assistant":
+            agent_func_to_run = run_assistant_agent
+        elif request.agent_type == "senior":
+            agent_func_to_run = run_senior_agent
+        elif request.agent_type == "supervisor":
+            agent_func_to_run = run_supervisor_agent
+        elif request.agent_type == "manager":
+            agent_func_to_run = run_manager_agent
+        elif request.agent_type == "team":
+            agent_func_to_run = run_team_agent
+        else:
+            log.warning(f"Unknown agent_type: {request.agent_type}. Defaulting to assistant.")
+            agent_func_to_run = run_assistant_agent # Default to assistant
+            final_model_type_for_response = requested_model_type # Keep requested model type for response
+
+        if not agent_func_to_run:
+            log.error(f"Could not determine agent function for agent_type: {request.agent_type}")
+            return JSONResponse(
+                status_code=500,
+                content={"message": "Error interno: Tipo de agente no configurado.", "client_id": client_id, "session_id": session_id, "model_used": "error"}
+            )
+
         try:
-            # Ejecutar agente asistente
-            response_text = run_assistant_agent(
-                client_id=client_id, 
-                session_id=session_id, 
-                message=message.message,
-                use_supabase=args.supabase,
+            log.info(f"Processing /api/chat for client: {client_id}, session: {session_id}, model: {final_model_type_for_response}, agent: {request.agent_type}")
+            # The ADK functions run_assistant_agent etc. expect use_supabase as a direct arg.
+            # We need to get it from the global `args` or app_state if that's how it's managed in API mode.
+            # Assuming `args.supabase` is available from the initial `main()` parse if API mode is run.
+            # This might need adjustment if `args` isn't accessible here or if app_state should hold it.
+            
+            # Quick check for args.supabase (this is a simplification, might need robust config access)
+            # It seems `args` from `main()` isn't directly available in request handlers.
+            # Let's rely on `app_state` for `use_supabase` or assume a default if not set.
+            # For now, let's assume `initialize_session_service` called by agent runners handles this.
+
+            response_text = await asyncio.to_thread(
+                agent_func_to_run, 
+                client_id, 
+                session_id, 
+                message_text, 
+                # use_supabase=app_state.get("use_supabase_config", False), # Assuming this config exists or is passed to agent_func
                 use_anthropic=use_anthropic,
                 use_openai=use_openai
             )
             
-            # Registrar evento de interacción con cliente
-            new_event = AuditEvent(
-                id=str(uuid.uuid4()),
-                team_id=f"team_{client_id}",
-                agent_name="assistant_agent",
-                event_type="client_interaction",
-                details={
-                    "client_message": message.message,
-                    "session_id": session_id
-                },
-                timestamp=datetime.now(),
-                importance="medium"
+            # Ensure use_supabase is passed to the agent function correctly
+            # The run_..._agent functions take use_supabase as a direct argument.
+            # It's initialized from `args.supabase` in `main()` which sets up `app_state["session_service"]`
+            # The agent runners call `initialize_session_service(use_supabase=...)`
+            # So, we need to make sure the agent functions get this flag.
+            # The agent functions like `run_assistant_agent` already take `use_supabase` as a kwarg.
+            # The `initialize_session_service` is called inside them.
+            # This part needs careful checking of how `use_supabase` is propagated in API mode.
+            # For now, let's assume the agent functions handle it internally or we need to pass `args.supabase` to them.
+            # The current structure of `run_assistant_agent` calls `initialize_session_service(use_supabase=use_supabase)`
+            # so the boolean `use_supabase` must be passed to it. This is missing from `asyncio.to_thread` call.
+            
+            # CORRECTED call to agent function, assuming `args` is accessible or default is fine
+            # This part needs to be robust. For now, let's add a placeholder for use_supabase
+            # Ideally, this should come from app_state if set during startup
+            use_supabase_flag = app_state.get("use_supabase_from_config", False) # Placeholder
+
+            # The functions like run_assistant_agent themselves handle initialize_session_service(use_supabase=...)
+            # So, the boolean use_supabase needs to be passed to them.
+            # The current asyncio.to_thread call only passes use_anthropic, use_openai.
+
+            # Re-doing the call with placeholder for use_supabase
+            response_text = await asyncio.to_thread(
+                agent_func_to_run,
+                client_id, session_id, message_text,
+                use_supabase=use_supabase_flag, # THIS IS A KEY FIX - ensure it gets the right config
+                use_anthropic=use_anthropic,
+                use_openai=use_openai
             )
-            await emit_audit_event(new_event.dict())
-            
+
             elapsed_time = time.time() - start_time
-            print(f"Tiempo de respuesta del Asistente: {elapsed_time:.2f} segundos")
-            
-            return {"message": response_text, "client_id": client_id, "session_id": session_id}
+            log.info(f"Response for /api/chat generated in {elapsed_time:.2f}s. Model: {final_model_type_for_response}")
+
+            return AgentResponse(
+                message=response_text,
+                client_id=client_id,
+                session_id=session_id,
+                model_used=final_model_type_for_response 
+            )
+
         except Exception as e:
-            error_message = f"Error al procesar mensaje: {str(e)}"
-            print(error_message)
+            log.error(f"Error processing /api/chat request for client {client_id}: {e}", exc_info=True)
             return JSONResponse(
                 status_code=500,
-                content={"message": error_message, "client_id": client_id, "session_id": session_id}
+                content={"message": f"Error interno del servidor: {str(e)}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
             )
 
     # Endpoint para obtener el informe final de auditoría

@@ -1,21 +1,26 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../../contexts/ChatContext';
-import type { LLMModel } from '../../contexts/ChatContext';
+import type { ApiLLMModel, FrontendLLMModel } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Search, Mic } from 'lucide-react';
+import { Plus, Search, Mic, ChevronDown, LogOut } from 'lucide-react';
+
+// API models available for selection by the user
+const AVAILABLE_API_MODELS: ApiLLMModel[] = ['gemini', 'claude', 'gpt4', 'mock'];
 
 // Helpers
-const getModelDisplayName = (model: LLMModel): string => {
+const getModelDisplayName = (model: FrontendLLMModel): string => {
   switch(model) {
     case 'mock': return 'Demo';
-    case 'gemini': return 'Gemini';
-    case 'claude': return 'Claude';
-    case 'gpt4': return 'GPT-4';
+    case 'gemini': return 'Gemini Pro';
+    case 'claude': return 'Claude 3';
+    case 'gpt4': return 'GPT-4 Turbo';
     case 'assistant': return 'Asistente';
     case 'system': return 'Sistema';
     case 'error': return 'Error';
     case 'error_fallback': return 'Respaldo';
-    default: return 'Desconocido';
+    default:
+      const exhaustiveCheck: never = model;
+      return 'Desconocido';
   }
 };
 
@@ -96,58 +101,116 @@ const FilePreview = ({ file, onRemove }: { file: File; onRemove: () => void }) =
   );
 };
 
+// ChatHeader component with functional model selector
+const ChatHeader = ({
+  selectedApiModel,
+  onApiModelChange,
+  onLogout
+}: {
+  selectedApiModel: ApiLLMModel;
+  onApiModelChange: (model: ApiLLMModel) => void;
+  onLogout: () => void;
+}) => {
+  const [showModelSelector, setShowModelSelector] = useState(false);
+
+  return (
+    <div className="bg-gray-800 border-b border-gray-700 p-3 z-20 sticky top-0">
+      <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-white">Asistente de Auditoría IA</h1>
+        
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <button 
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-700 transition-all"
+            >
+              <span>Modelo: {getModelDisplayName(selectedApiModel)}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showModelSelector && (
+              <div className="absolute right-0 mt-2 w-48 bg-gray-700 shadow-xl rounded-md border border-gray-600 overflow-hidden z-30">
+                {AVAILABLE_API_MODELS.map((model) => (
+                  <button
+                    key={model}
+                    onClick={() => {
+                      onApiModelChange(model);
+                      setShowModelSelector(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-600 transition-colors ${
+                      selectedApiModel === model ? 'bg-blue-600 font-semibold' : ''
+                    }`}
+                  >
+                    {getModelDisplayName(model)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-full text-gray-400 hover:text-gray-200 hover:bg-gray-700 transition-colors"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main ChatPage component
 function ChatPage() {
-  const { messages, sendMessage, uploadFile, isLoading, error } = useChat();
+  const {
+    messages,
+    sendMessage,
+    uploadFileToStorage,
+    isLoading,
+    error,
+    currentModel,
+    setCurrentModel
+  } = useChat();
   const { signOut } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedModel, setSelectedModel] = useState<LLMModel>('gemini');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileInfo, setFileInfo] = useState<{ fileName: string; fileUrl: string; fileType: string } | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
+  const [fileInfoForDisplay, setFileInfoForDisplay] = useState<{ fileName: string; fileUrl: string; fileType: string } | null>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   
-  // Scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, [messages]);
 
-  // Function that gets called after a message is sent or received
-  const handleAfterMessageAction = () => {
-    scrollToBottom();
-    // Focus back on input after sending
-    inputRef.current?.focus();
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading, messages, error]);
+  
+  const handleModelChange = (model: ApiLLMModel) => {
+    setCurrentModel(model);
+    console.log(`ChatPage: Model changed to: ${getModelDisplayName(model)}`);
   };
   
-  // Function to handle model change
-  const handleModelChange = (model: LLMModel) => {
-    setSelectedModel(model);
-    console.log(`Changed model to: ${getModelDisplayName(model)}`);
-  };
-  
-  // Function to send message - fixed to prevent loops
   const handleSendMessage = async () => {
-    // Don't attempt to send if loading or message is empty and no file is selected
-    if (isLoading || (!currentMessage.trim() && !fileInfo)) return;
+    if (isLoading || (!currentMessage.trim() && !selectedFile)) return;
     
     try {
-      await sendMessage(
-        currentMessage, 
-        selectedModel, 
-        fileInfo || undefined
-      );
+      await sendMessage(currentMessage, currentModel, selectedFile || undefined);
       setCurrentMessage('');
       setSelectedFile(null);
-      setFileInfo(null);
-      handleAfterMessageAction();
+      setFileInfoForDisplay(null);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('ChatPage: Error sending message:', error);
     }
   };
 
-  // Keyboard event handling
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -155,154 +218,99 @@ function ChatPage() {
     }
   };
 
-  // Handle file upload button click
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Handle file selection
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Show selected file in UI
     setSelectedFile(file);
+    setFileInfoForDisplay(null);
     
-    // Upload file to server/storage
-    try {
-      const result = await uploadFile(file);
-      if (result) {
-        setFileInfo(result);
-      } else {
-        setSelectedFile(null);
-      }
-    } catch (err) {
-      console.error('Error uploading file:', err);
-      setSelectedFile(null);
-    }
-    
-    // Reset input
     if (e.target) e.target.value = '';
   };
   
-  // Handle file removal
   const handleFileRemove = () => {
     setSelectedFile(null);
-    setFileInfo(null);
+    setFileInfoForDisplay(null);
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-3 z-10">
-        <div className="max-w-[600px] mx-auto flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-white">Asistente de Auditoría</h1>
-          
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <button 
-                className="flex items-center gap-1 px-3 py-1.5 text-sm rounded border border-gray-600 text-gray-200 hover:bg-gray-700 transition-all"
-              >
-                <span>Modelo: {getModelDisplayName(selectedModel)}</span>
-                <svg
-                  className="w-4 h-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-            </div>
-            
-            {signOut && (
-              <button
-                onClick={signOut}
-                className="p-1.5 rounded-full text-gray-300 hover:bg-gray-700"
-                aria-label="Cerrar sesión"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <ChatHeader 
+        selectedApiModel={currentModel}
+        onApiModelChange={handleModelChange} 
+        onLogout={signOut}
+      />
       
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
+        accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,application/zip,application/x-zip-compressed"
       />
       
-      {/* Error display */}
       {error && (
-        <div className="absolute top-14 left-0 right-0 mx-auto max-w-md bg-red-500/80 text-white p-3 rounded-lg backdrop-blur-sm text-sm z-50">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 max-w-md w-full bg-red-600/90 text-white p-3 rounded-lg shadow-lg backdrop-blur-sm text-sm z-50 flex items-center justify-between">
           <p>{error}</p>
         </div>
       )}
 
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length > 0 ? (
-            <div className="max-w-2xl mx-auto space-y-4">
+            <div className="max-w-3xl mx-auto w-full">
               {messages.map(msg => (
                 <div 
                   key={msg.id} 
-                  className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex mb-3 ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div 
-                    className={`max-w-xs sm:max-w-md rounded-lg px-4 py-2 ${
+                    className={`max-w-[80%] sm:max-w-[70%] rounded-xl px-4 py-2.5 shadow ${
                       msg.sender === 'client'
-                        ? 'bg-blue-600 text-white rounded-tr-none'
-                        : 'bg-gray-700 text-gray-100 rounded-tl-none'
+                        ? 'bg-blue-600 text-white rounded-br-none'
+                        : msg.sender === 'system' 
+                        ? 'bg-yellow-500/20 text-yellow-200 text-xs italic border border-yellow-500/30 self-center mx-auto text-center px-3 py-1.5'
+                        : 'bg-gray-700 text-gray-100 rounded-bl-none'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{msg.message}</div>
+                    <div className="whitespace-pre-wrap break-words">{msg.message}</div>
                     
-                    {/* Display file attachment if exists */}
-                    <MessageAttachment 
-                      fileName={msg.fileName} 
-                      fileUrl={msg.fileUrl} 
-                      fileType={msg.fileType} 
-                    />
+                    {(msg.fileName || msg.fileUrl) && msg.sender !== 'system' && (
+                      <MessageAttachment 
+                        fileName={msg.fileName} 
+                        fileUrl={msg.fileUrl} 
+                        fileType={msg.fileType} 
+                      />
+                    )}
                     
-                    <div className="flex justify-between mt-1 text-xs opacity-75">
-                      {msg.model && (
-                        <span className="text-xs opacity-70">{getModelDisplayName(msg.model)}</span>
-                      )}
-                      <span>{new Date(msg.timestamp).toLocaleTimeString()}</span>
-                    </div>
+                    {msg.sender !== 'system' && (
+                        <div className="flex items-center justify-end mt-1.5 text-xs opacity-60">
+                        {msg.model && (
+                            <span className="mr-2 opacity-80">{getModelDisplayName(msg.model)}</span>
+                        )}
+                        <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    )}
                   </div>
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <h2 className="text-2xl font-bold mb-4">Ready when you are.</h2>
-                <p>Envía un mensaje para comenzar una conversación</p>
-              </div>
+            <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
+              <svg className="w-24 h-24 mb-6 text-gray-600" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" viewBox="0 0 24 24" stroke="currentColor"><path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+              <h2 className="text-2xl font-semibold mb-2">Listo para ayudar.</h2>
+              <p className="max-w-sm">Escribe tu consulta o adjunta un archivo para comenzar con la auditoría.</p>
             </div>
           )}
         </div>
         
-        {/* Message input area - Redesigned to match the reference image */}
-        <div className="px-4 py-4 flex flex-col items-center justify-center">
-          <div className="relative w-full max-w-[600px]">
-            {/* File preview if selected */}
+        <div className="px-4 pt-3 pb-4 border-t border-gray-700/60 bg-gray-900">
+          <div className="relative w-full max-w-3xl mx-auto">
             {selectedFile && (
               <FilePreview 
                 file={selectedFile} 
@@ -310,12 +318,11 @@ function ChatPage() {
               />
             )}
             
-            {/* Input field and buttons - styled like the reference */}
-            <div className={`relative flex items-center w-full bg-gray-800/50 border ${isFocused ? 'border-gray-500' : 'border-gray-700/60'} rounded-lg backdrop-blur-sm overflow-hidden`}>
+            <div className={`relative flex items-center w-full bg-gray-800 border ${isInputFocused ? 'border-blue-500 shadow-md' : 'border-gray-700'} rounded-xl overflow-hidden transition-all`}>
               <button 
                 onClick={handleUploadClick} 
-                className={`p-3 ${isLoading ? 'text-gray-600' : 'text-gray-400 hover:text-gray-200'} transition-colors`}
-                aria-label="Upload attachment"
+                className={`p-3 ${isLoading ? 'text-gray-500 cursor-not-allowed' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/70'} transition-colors`}
+                aria-label="Adjuntar archivo"
                 disabled={isLoading}
               >
                 <Plus className="w-5 h-5" />
@@ -327,22 +334,16 @@ function ChatPage() {
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                placeholder="Pregunta algo"
-                className="w-full bg-transparent border-0 outline-none px-2 py-3 focus:ring-0 text-gray-200"
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                placeholder="Escribe tu mensaje o pregunta sobre auditoría..."
+                className="flex-1 bg-transparent border-0 outline-none px-1 py-3.5 focus:ring-0 text-gray-100 placeholder-gray-500 text-sm"
                 disabled={isLoading}
-                autoFocus
               />
               
-              {/* Action buttons */}
-              <div className="flex flex-wrap items-center justify-end gap-2 p-2">
-                <ActionChip icon={<Search className="w-4 h-4" />} label="Buscar" />
-                <ActionChip icon={<Plus className="w-4 h-4" />} label="Crear imagen" />
-                
-                {/* Options button */}
+              <div className="flex items-center justify-end gap-1 p-2">
                 <button
-                  className="p-1.5 text-gray-400 hover:text-gray-200 transition-colors rounded-full hover:bg-gray-700/70"
+                  className="p-2 text-gray-400 hover:text-gray-200 transition-colors rounded-full hover:bg-gray-700/70"
                   aria-label="Más opciones"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -350,19 +351,21 @@ function ChatPage() {
                   </svg>
                 </button>
                 
-                {/* Mic button */}
                 <button 
-                  className="p-1.5 text-gray-400 hover:text-gray-200 transition-colors rounded-full hover:bg-gray-700/70"
+                  className="p-2 text-gray-400 hover:text-gray-200 transition-colors rounded-full hover:bg-gray-700/70"
                   aria-label="Entrada de voz"
                 >
                   <Mic className="w-5 h-5" />
                 </button>
                 
-                {/* Send button */}
                 <button
                   onClick={handleSendMessage}
-                  disabled={(!currentMessage.trim() && !fileInfo) || isLoading}
-                  className={`p-1.5 text-white rounded-full ${(currentMessage.trim() || fileInfo) && !isLoading ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 text-gray-400'} transition-colors ml-1`}
+                  disabled={(!currentMessage.trim() && !selectedFile) || isLoading}
+                  className={`p-2.5 text-white rounded-lg transition-all ml-1 ${
+                    (currentMessage.trim() || selectedFile) && !isLoading 
+                    ? 'bg-blue-600 hover:bg-blue-700 shadow-md' 
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
                   aria-label="Enviar mensaje"
                 >
                   {isLoading ? (

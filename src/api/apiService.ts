@@ -1,9 +1,11 @@
-
 import { v4 as uuidv4 } from 'uuid';
 
 // API URL configuration - Use the provided env variable or fallback
-const API_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
+const API_URL = RAW_API_URL.replace(/\/$/, ''); // Remove trailing slash if present
+
+const RAW_WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+const WS_URL = RAW_WS_URL.replace(/\/$/, ''); // Remove trailing slash if present
 
 // Models available
 export type LLMModel = 'gemini' | 'claude' | 'gpt4' | 'mock';
