@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+import { sendMessageToLLM, uploadFileForAnalysis } from '../api/apiService';
 
 // Lista de modelos disponibles
 export type LLMModel = 'mock' | 'gemini' | 'claude' | 'gpt4';
@@ -12,10 +13,10 @@ export type Message = {
   sender: 'client' | 'assistant' | 'senior' | 'supervisor' | 'manager';
   message: string;
   timestamp: string;
-  model?: LLMModel; // Modelo que generó este mensaje
-  fileName?: string; // Nombre del archivo adjunto si existe
-  fileUrl?: string; // URL del archivo adjunto si existe
-  fileType?: string; // Tipo de archivo
+  model?: LLMModel;
+  fileName?: string;
+  fileUrl?: string;
+  fileType?: string;
 };
 
 type ChatContextType = {
@@ -35,8 +36,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [tableErrorOccurred, setTableErrorOccurred] = useState(false);
-  const [currentModel, setCurrentModel] = useState<LLMModel>('mock');
-  const [isUploading, setIsUploading] = useState(false);
+  const [sessionId] = useState<string>(() => uuidv4());
 
   // Create welcome message if no messages exist
   useEffect(() => {
@@ -46,9 +46,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         id: uuidv4(),
         user_id: user?.id || 'anonymous',
         sender: 'assistant',
-        message: '¡Bienvenido al chat de auditoría! ¿En qué puedo ayudarte hoy?',
+        message: '¡Bienvenido al chat de auditoría! Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
         timestamp: new Date().toISOString(),
-        model: 'mock'
+        model: 'assistant'
       };
       setMessages([welcomeMessage]);
     }
@@ -68,24 +68,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       try {
         setIsLoading(true);
         
-        // Fetch existing messages with timeout
-        const abortController = new AbortController();
-        const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10 seconds timeout
-        
-        const { data, error } = await supabase
+        // Fetch existing messages
+        const { data, error: fetchError } = await supabase
           .from('messages')
           .select('*')
           .eq('user_id', user.id)
           .order('timestamp', { ascending: true })
-          .limit(100)
-          .abortSignal(abortController.signal);
+          .limit(100);
           
-        clearTimeout(timeoutId);
-
-        if (error) {
-          console.error('Error fetching messages:', error);
+        if (fetchError) {
+          console.error('Error fetching messages:', fetchError);
           
-          if (error.code === '42P01') {
+          if (fetchError.code === '42P01') { // Table doesn't exist error
             setTableErrorOccurred(true);
             setError('Servicio en modo de demostración. Las conversaciones no serán guardadas.');
           } else {
@@ -149,25 +143,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, subscribed, tableErrorOccurred]);
 
-  // Función para subir archivos a Supabase
+  // Function to upload files
   const uploadFile = async (file: File) => {
     if (!user) return null;
     
     try {
-      setIsUploading(true);
+      setIsLoading(true);
       setError(null);
       
-      // Crear un nombre único para el archivo
+      // Create a unique name for the file
       const fileExt = file.name.split('.').pop();
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
       
-      // Si estamos en modo demo, simular la carga
+      // If we're in demo mode, simulate file upload
       if (tableErrorOccurred) {
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simular el tiempo de carga
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate upload time
         
         const mockFileUrl = `https://ejemplo.com/archivos/${fileName}`;
-        setIsUploading(false);
+        setIsLoading(false);
         
         return {
           fileName: file.name,
@@ -176,7 +170,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         };
       }
       
-      // Subir el archivo al bucket de Supabase
+      // Upload file to Supabase Storage
       const { data, error: uploadError } = await supabase.storage
         .from('chat-files')
         .upload(filePath, file, {
@@ -187,19 +181,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (uploadError) {
         console.error('Error uploading file:', uploadError);
         setError('No se pudo subir el archivo. Por favor, intenta nuevamente.');
-        setIsUploading(false);
+        setIsLoading(false);
         return null;
       }
       
-      // Obtener la URL pública del archivo
+      // Get public URL for the file
       const { data: urlData } = await supabase.storage
         .from('chat-files')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // URL válida por 1 año
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365); // URL valid for 1 year
         
-      // Si no pudimos obtener la URL, usar una URL relativa basada en variable de entorno
-      const fileUrl = urlData?.signedUrl || `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/chat-files/${filePath}`;
+      // If we couldn't get the URL, use a relative URL based on env variable
+      const fileUrl = urlData?.signedUrl || `https://wdhpfvgidwmporwuwtiy.supabase.co/storage/v1/object/public/chat-files/${filePath}`;
       
-      setIsUploading(false);
+      setIsLoading(false);
       
       return {
         fileName: file.name,
@@ -209,25 +203,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Unexpected error uploading file:', err);
       setError('Error de conexión. El archivo no pudo ser subido.');
-      setIsUploading(false);
+      setIsLoading(false);
       return null;
     }
   };
 
-  const sendMessage = async (text: string, model?: LLMModel, fileInfo?: { fileName: string; fileUrl: string; fileType: string }) => {
+  // Function to send messages
+  const sendMessage = async (text: string, model: LLMModel = 'gemini', fileInfo?: { fileName: string; fileUrl: string; fileType: string }) => {
     if (!user || (!text.trim() && !fileInfo)) return;
     
-    // Usar el modelo proporcionado o el actual por defecto
-    const modelToUse = model || currentModel;
-    
-    // Si se proporciona un modelo diferente, actualizarlo
-    if (model && model !== currentModel) {
-      setCurrentModel(model);
-    }
-    
     setError(null);
+    setIsLoading(true);
 
-    // Optimistically add message to UI
+    // Create optimistic message for UI
     const optimisticId = uuidv4();
     const optimisticMessage: Message = {
       id: optimisticId,
@@ -245,120 +233,120 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setMessages(prev => [...prev, optimisticMessage]);
 
     try {
+      // Determine if we should use the real API or mock responses
       if (tableErrorOccurred) {
-        // Simular una pausa para la respuesta
-        const responseDelay = fileInfo ? 2000 : 1000; // Más tiempo si hay archivo
+        // Use mock responses
+        await new Promise(resolve => setTimeout(resolve, fileInfo ? 2000 : 1000));
         
-        setTimeout(() => {
-          const responseId = uuidv4();
-          const responseMessage: Message = {
-            id: responseId,
-            user_id: user?.id || 'anonymous',
-            sender: 'assistant',
-            message: fileInfo 
-              ? `He recibido tu archivo "${fileInfo.fileName}". ${getMockResponse(text || "Analiza este archivo", modelToUse, true)}`
-              : getMockResponse(text, modelToUse),
-            timestamp: new Date().toISOString(),
-            model: modelToUse
-          };
-          setMessages(prev => [...prev, responseMessage]);
-        }, responseDelay);
-        return;
-      }
-
-      // Send to Supabase with timeout
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5 seconds timeout
-      
-      // Preparar metadatos para archivo si existe
-      const metadata = fileInfo ? {
-        fileName: fileInfo.fileName,
-        fileUrl: fileInfo.fileUrl,
-        fileType: fileInfo.fileType
-      } : {};
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          user_id: user.id,
-          sender: 'client',
-          message: text,
-          model: modelToUse,
-          metadata
-        })
-        .select()
-        .abortSignal(abortController.signal)
-        .single();
+        const mockResponse = getMockResponse(text, model, !!fileInfo);
         
-      clearTimeout(timeoutId);
-
-      if (error) {
-        console.error('Error sending message:', error);
-        
-        if (error.code === '42P01') {
-          setTableErrorOccurred(true);
-          
-          setTimeout(() => {
-            const responseId = uuidv4();
-            const responseMessage: Message = {
-              id: responseId,
-              user_id: user?.id || 'anonymous',
-              sender: 'assistant',
-              message: fileInfo 
-                ? `He recibido tu archivo "${fileInfo.fileName}". ${getMockResponse(text || "Analiza este archivo", modelToUse, true)}`
-                : getMockResponse(text, modelToUse),
-              timestamp: new Date().toISOString(),
-              model: modelToUse
-            };
-            setMessages(prev => [...prev, responseMessage]);
-          }, 1000);
-          
-          setError('Servicio en modo de demostración. Las conversaciones no serán guardadas.');
-        } else {
-          // Remove optimistic message on error
-          setMessages(prev => prev.filter(msg => msg.id !== optimisticId));
-          setError('No se pudo enviar el mensaje. Por favor, intenta nuevamente.');
-        }
-        return;
-      }
-
-      // Replace optimistic message with actual one from server
-      if (data) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === optimisticId ? {
-            ...data,
-            fileName: fileInfo?.fileName,
-            fileUrl: fileInfo?.fileUrl,
-            fileType: fileInfo?.fileType
-          } : msg
-        ));
-      }
-      
-      // Add mock response (for demo purposes since there's no LLM)
-      setTimeout(() => {
-        const responseId = uuidv4();
         const responseMessage: Message = {
-          id: responseId,
+          id: uuidv4(),
           user_id: user?.id || 'anonymous',
           sender: 'assistant',
           message: fileInfo 
-            ? `He recibido tu archivo "${fileInfo.fileName}". ${getMockResponse(text || "Analiza este archivo", modelToUse, true)}`
-            : getMockResponse(text, modelToUse),
+            ? `He recibido tu archivo "${fileInfo.fileName}". ${mockResponse}`
+            : mockResponse,
           timestamp: new Date().toISOString(),
-          model: modelToUse
+          model: model
         };
+        
         setMessages(prev => [...prev, responseMessage]);
-      }, 1500);
-      
+      } else {
+        // Try to use the real API
+        try {
+          // Send message to LLM API
+          const response = await sendMessageToLLM({
+            message: text,
+            clientId: user.id,
+            sessionId,
+            modelType: model,
+            agentType: 'assistant'
+          });
+          
+          // If we have a file, also process it
+          if (fileInfo) {
+            await uploadFileForAnalysis(
+              new File(
+                [new Blob(['file content'], { type: fileInfo.fileType })], 
+                fileInfo.fileName
+              ),
+              user.id,
+              sessionId,
+              model
+            );
+          }
+          
+          // Add API response to chat
+          const assistantMessage: Message = {
+            id: uuidv4(),
+            user_id: user?.id || 'anonymous',
+            sender: 'assistant',
+            message: response.message,
+            timestamp: new Date().toISOString(),
+            model: response.modelUsed
+          };
+          
+          setMessages(prev => [...prev, assistantMessage]);
+          
+          // Try to store in Supabase if available
+          try {
+            await supabase.from('messages').insert([
+              {
+                user_id: user.id,
+                sender: 'client',
+                message: text,
+                model,
+                metadata: fileInfo ? { fileName: fileInfo.fileName, fileUrl: fileInfo.fileUrl, fileType: fileInfo.fileType } : {}
+              },
+              {
+                user_id: user.id,
+                sender: 'assistant',
+                message: response.message,
+                model: response.modelUsed
+              }
+            ]);
+          } catch (dbErr) {
+            console.error('Error storing messages in database:', dbErr);
+            // Don't show error to user as the messages already appear in UI
+          }
+        } catch (apiError) {
+          console.error('API error, falling back to mock:', apiError);
+          
+          // Fall back to mock responses
+          const mockResponse = getMockResponse(text, model, !!fileInfo);
+          
+          const fallbackMessage: Message = {
+            id: uuidv4(),
+            user_id: user?.id || 'anonymous',
+            sender: 'assistant',
+            message: fileInfo 
+              ? `[Modo de respaldo] He recibido tu archivo "${fileInfo.fileName}". ${mockResponse}`
+              : `[Modo de respaldo] ${mockResponse}`,
+            timestamp: new Date().toISOString(),
+            model: 'error_fallback'
+          };
+          
+          setMessages(prev => [...prev, fallbackMessage]);
+        }
+      }
     } catch (err) {
       console.error('Unexpected error sending message:', err);
-      // Keep optimistic message but mark as error
-      setMessages(prev => prev.map(msg => 
-        msg.id === optimisticId 
-          ? {...msg, message: msg.message + ' (no enviado)'}
-          : msg
-      ));
-      setError('Error de conexión. El mensaje no pudo ser enviado.');
+      
+      // Keep optimistic message but show error
+      const errorMessage: Message = {
+        id: uuidv4(),
+        user_id: user?.id || 'anonymous',
+        sender: 'assistant',
+        message: 'Lo siento, ocurrió un error al procesar tu mensaje. Por favor, intenta nuevamente.',
+        timestamp: new Date().toISOString(),
+        model: 'error'
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      setError('Error de conexión. No se pudo procesar el mensaje.');
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -367,7 +355,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const lowerText = message.toLowerCase();
     let baseResponse = '';
     
-    // Si es un contexto de archivo, respuestas especializadas
+    // If it's a file context, provide specialized responses
     if (isFileContext) {
       baseResponse = 'He analizado el archivo que has enviado. Parece contener información relevante para la auditoría. ¿Hay algún aspecto específico de los datos que quieras que revise?';
     } 
@@ -382,7 +370,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       baseResponse = 'Entiendo tu consulta. Para proporcionarte información precisa sobre la auditoría, ¿podrías proporcionar más detalles específicos sobre lo que necesitas?';
     }
     
-    // Personalizar la respuesta según el modelo
+    // Customize the response based on the model
     switch (model) {
       case 'gemini':
         return `${baseResponse}\n\n[Respuesta generada por Gemini, aprovechando mi entrenamiento multitarea en diversos dominios]`;
@@ -404,7 +392,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       messages, 
       sendMessage, 
       uploadFile,
-      isLoading: isLoading || isUploading, 
+      isLoading, 
       error 
     }}>
       {children}

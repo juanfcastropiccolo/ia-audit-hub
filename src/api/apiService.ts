@@ -1,7 +1,9 @@
+
 import { v4 as uuidv4 } from 'uuid';
 
-// API URL configuration - Dynamic port detection
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8001`;
+// API URL configuration - Use the provided env variable or fallback
+const API_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8000/ws`;
 
 // Models available
 export type LLMModel = 'gemini' | 'claude' | 'gpt4' | 'mock';
@@ -24,8 +26,7 @@ export interface MessageResponse {
 
 // API for communicating with LLM models
 export const sendMessageToLLM = async (params: SendMessageParams): Promise<MessageResponse> => {
-  const { message, clientId, sessionId, modelType } = params;
-  // Unused agentType is not destructured from params
+  const { message, clientId, sessionId, modelType, agentType = 'assistant' } = params;
   
   if (modelType === 'mock') {
     // Mock response for testing without backend
@@ -57,10 +58,13 @@ export const sendMessageToLLM = async (params: SendMessageParams): Promise<Messa
     };
   }
   
-  // Funcionamiento a prueba de fallos - si el backend da error, usar mock
+  // Attempt to use the backend API with fallback to mock responses
   try {
-    // Real API call to the backend
-    console.log(`Enviando mensaje al backend (${API_URL}/api/chat)...`);
+    console.log(`Sending message to backend (${API_URL}/api/chat)...`);
+    
+    // Set up request with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
     
     const response = await fetch(`${API_URL}/api/chat`, {
       method: 'POST',
@@ -71,16 +75,17 @@ export const sendMessageToLLM = async (params: SendMessageParams): Promise<Messa
         message,
         client_id: clientId,
         session_id: sessionId,
-        model_type: 'gemini', // Forzar siempre gemini para evitar problemas
-        agent_type: 'assistant' // Forzar siempre assistant para simplificar
+        model_type: modelType,
+        agent_type: agentType
       }),
-      // Añadir timeout para evitar esperas infinitas
-      signal: AbortSignal.timeout(15000) // 15 segundos máximo
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`Error en la API (${response.status}): ${response.statusText}`);
-      // Si hay error, mostrar detalle y caer al fallback
+      console.error(`API Error (${response.status}): ${response.statusText}`);
+      // Show error details and fall back to mock
       const errorBody = await response.text();
       throw new Error(`API error (${response.status}): ${errorBody}`);
     }
@@ -89,7 +94,7 @@ export const sendMessageToLLM = async (params: SendMessageParams): Promise<Messa
     return {
       message: data.message || "Lo siento, la respuesta del servidor no contenía un mensaje.",
       sessionId: data.session_id || sessionId || uuidv4(),
-      modelUsed: data.model_used || 'gemini'
+      modelUsed: data.model_used || modelType
     };
   } catch (error) {
     console.error('Error sending message to LLM:', error);
@@ -122,18 +127,23 @@ export const uploadFileForAnalysis = async (
   }
   
   try {
+    // Set up request with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout for large files
+    
     const formData = new FormData();
     formData.append('file', file);
     formData.append('client_id', clientId);
     formData.append('session_id', sessionId);
-    formData.append('model_type', 'gemini'); // Forzar gemini para evitar problemas
+    formData.append('model_type', modelType);
     
     const response = await fetch(`${API_URL}/api/upload`, {
       method: 'POST',
       body: formData,
-      // Añadir timeout para evitar esperas infinitas
-      signal: AbortSignal.timeout(30000) // 30 segundos máximo para archivos grandes
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status}`);
@@ -143,7 +153,7 @@ export const uploadFileForAnalysis = async (
     return {
       message: data.message || `Se ha subido el archivo ${file.name}, pero no hay respuesta detallada.`,
       sessionId: data.session_id || sessionId,
-      modelUsed: data.model_used || 'gemini'
+      modelUsed: data.model_used || modelType
     };
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -154,5 +164,56 @@ export const uploadFileForAnalysis = async (
       sessionId,
       modelUsed: 'error_fallback'
     };
+  }
+};
+
+// WebSocket connection for real-time chat features
+let socket: WebSocket | null = null;
+
+export const connectWebSocket = (
+  clientId: string, 
+  sessionId: string, 
+  onMessage: (message: any) => void,
+  onError: (error: any) => void
+) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
+  
+  try {
+    socket = new WebSocket(`${WS_URL}?client_id=${clientId}&session_id=${sessionId}`);
+    
+    socket.onopen = () => {
+      console.log('WebSocket connected');
+    };
+    
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage(data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    socket.onerror = (event) => {
+      console.error('WebSocket error:', event);
+      onError(event);
+    };
+    
+    socket.onclose = () => {
+      console.log('WebSocket closed');
+    };
+    
+    return () => {
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
+    };
+  } catch (error) {
+    console.error('Error creating WebSocket connection:', error);
+    onError(error);
+    return () => {};
   }
 };

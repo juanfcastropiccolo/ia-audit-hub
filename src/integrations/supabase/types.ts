@@ -9,7 +9,71 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      messages: {
+        Row: {
+          id: string
+          message: string
+          metadata: Json | null
+          model: string | null
+          sender: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          message: string
+          metadata?: Json | null
+          model?: string | null
+          sender: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          message?: string
+          metadata?: Json | null
+          model?: string | null
+          sender?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          last_login: string | null
+          nombre: string | null
+          rol: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id: string
+          last_login?: string | null
+          nombre?: string | null
+          rol?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_login?: string | null
+          nombre?: string | null
+          rol?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
