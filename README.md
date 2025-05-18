@@ -9,16 +9,13 @@ AUDIT-IA es una plataforma de auditoría que utiliza inteligencia artificial par
 
 ## Changelog
 
-### 2025-05-18
-- Implemented new modern split-screen login page design with illustration panel
+### 2025-05-17
 - Fixed responsive layout on login page
 - Eliminated horizontal and vertical scrollbars
 - Optimized mobile layout with stacked design
 - Improved logo scaling and positioning
 - Ensured accessibility with proper ARIA labels
 - Fixed content overflow issues with proper container constraints
-- Added smooth theme transition between light and dark modes
-- Improved form element styling and user interaction
 
 ## Requisitos previos
 
