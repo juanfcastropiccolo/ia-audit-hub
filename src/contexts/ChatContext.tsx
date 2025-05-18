@@ -3,17 +3,21 @@ import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
+// Lista de modelos disponibles
+export type LLMModel = 'mock' | 'gemini' | 'claude' | 'gpt4';
+
 export type Message = {
   id: string;
   user_id: string;
   sender: 'client' | 'assistant' | 'senior' | 'supervisor' | 'manager';
   message: string;
   timestamp: string;
+  model?: LLMModel; // Modelo que generó este mensaje
 };
 
 type ChatContextType = {
   messages: Message[];
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, model?: LLMModel) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 };
@@ -26,6 +30,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscribed, setSubscribed] = useState(false);
+  const [tableErrorOccurred, setTableErrorOccurred] = useState(false);
+  const [currentModel, setCurrentModel] = useState<LLMModel>('mock');
 
   // Create welcome message if no messages exist
   useEffect(() => {
@@ -33,10 +39,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Add a welcome message from the system
       const welcomeMessage: Message = {
         id: uuidv4(),
-        user_id: user.id,
+        user_id: user?.id || 'anonymous',
         sender: 'assistant',
         message: '¡Bienvenido al chat de auditoría! ¿En qué puedo ayudarte hoy?',
         timestamp: new Date().toISOString(),
+        model: 'mock'
       };
       setMessages([welcomeMessage]);
     }
@@ -49,8 +56,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     const fetchMessages = async () => {
-      if (!user) {
-        setMessages([]);
+      if (!user || tableErrorOccurred) {
         return;
       }
 
@@ -73,7 +79,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('Error fetching messages:', error);
-          setError('No se pudieron cargar los mensajes. Por favor, intenta nuevamente.');
+          
+          if (error.code === '42P01') {
+            setTableErrorOccurred(true);
+            setError('Servicio en modo de demostración. Las conversaciones no serán guardadas.');
+          } else {
+            setError('No se pudieron cargar los mensajes. Por favor, intenta nuevamente.');
+          }
         } else if (isMounted) {
           setMessages(data || []);
         }
@@ -87,7 +99,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Set up real-time subscription for new messages if not already subscribed
-      if (!subscribed && user) {
+      if (!subscribed && user && !tableErrorOccurred) {
         try {
           subscription = supabase
             .channel('messages-channel')
@@ -130,10 +142,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
       setSubscribed(false);
     };
-  }, [user, subscribed]);
+  }, [user, subscribed, tableErrorOccurred]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, model?: LLMModel) => {
     if (!user || !text.trim()) return;
+    
+    // Usar el modelo proporcionado o el actual por defecto
+    const modelToUse = model || currentModel;
+    
+    // Si se proporciona un modelo diferente, actualizarlo
+    if (model && model !== currentModel) {
+      setCurrentModel(model);
+    }
     
     setError(null);
 
@@ -141,7 +161,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const optimisticId = uuidv4();
     const optimisticMessage: Message = {
       id: optimisticId,
-      user_id: user.id,
+      user_id: user?.id || 'anonymous',
       sender: 'client',
       message: text,
       timestamp: new Date().toISOString(),
@@ -150,6 +170,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setMessages(prev => [...prev, optimisticMessage]);
 
     try {
+      if (tableErrorOccurred) {
+        setTimeout(() => {
+          const responseId = uuidv4();
+          const responseMessage: Message = {
+            id: responseId,
+            user_id: user?.id || 'anonymous',
+            sender: 'assistant',
+            message: getMockResponse(text, modelToUse),
+            timestamp: new Date().toISOString(),
+            model: modelToUse
+          };
+          setMessages(prev => [...prev, responseMessage]);
+        }, 1000);
+        return;
+      }
+
       // Send to Supabase with timeout
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5 seconds timeout
@@ -160,6 +196,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           user_id: user.id,
           sender: 'client',
           message: text,
+          model: modelToUse
         })
         .select()
         .abortSignal(abortController.signal)
@@ -169,9 +206,29 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('Error sending message:', error);
-        // Remove optimistic message on error
-        setMessages(prev => prev.filter(msg => msg.id !== optimisticId));
-        setError('No se pudo enviar el mensaje. Por favor, intenta nuevamente.');
+        
+        if (error.code === '42P01') {
+          setTableErrorOccurred(true);
+          
+          setTimeout(() => {
+            const responseId = uuidv4();
+            const responseMessage: Message = {
+              id: responseId,
+              user_id: user?.id || 'anonymous',
+              sender: 'assistant',
+              message: getMockResponse(text, modelToUse),
+              timestamp: new Date().toISOString(),
+              model: modelToUse
+            };
+            setMessages(prev => [...prev, responseMessage]);
+          }, 1000);
+          
+          setError('Servicio en modo de demostración. Las conversaciones no serán guardadas.');
+        } else {
+          // Remove optimistic message on error
+          setMessages(prev => prev.filter(msg => msg.id !== optimisticId));
+          setError('No se pudo enviar el mensaje. Por favor, intenta nuevamente.');
+        }
         return;
       }
 
@@ -187,10 +244,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const responseId = uuidv4();
         const responseMessage: Message = {
           id: responseId,
-          user_id: user.id,
+          user_id: user?.id || 'anonymous',
           sender: 'assistant',
-          message: getMockResponse(text),
+          message: getMockResponse(text, modelToUse),
           timestamp: new Date().toISOString(),
+          model: modelToUse
         };
         setMessages(prev => [...prev, responseMessage]);
       }, 1000);
@@ -208,18 +266,37 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   };
   
   // Helper function for mock responses
-  const getMockResponse = (message: string): string => {
+  const getMockResponse = (message: string, model: LLMModel = 'mock'): string => {
     const lowerText = message.toLowerCase();
+    
+    // Respuestas diferentes según el modelo
+    let baseResponse = '';
     
     // Simple keyword matching for mock responses
     if (lowerText.includes('hola') || lowerText.includes('buenos días') || lowerText.includes('buenas')) {
-      return '¡Hola! ¿En qué puedo ayudarte con la auditoría hoy?';
+      baseResponse = '¡Hola! ¿En qué puedo ayudarte con la auditoría hoy?';
     } else if (lowerText.includes('ayuda') || lowerText.includes('help')) {
-      return 'Puedo ayudarte con información sobre el proceso de auditoría, estado actual, documentos requeridos y resolver dudas específicas.';
+      baseResponse = 'Puedo ayudarte con información sobre el proceso de auditoría, estado actual, documentos requeridos y resolver dudas específicas.';
     } else if (lowerText.includes('gracias')) {
-      return 'De nada. Estoy aquí para ayudarte con cualquier otra pregunta que tengas.';
+      baseResponse = 'De nada. Estoy aquí para ayudarte con cualquier otra pregunta que tengas.';
     } else {
-      return 'Entiendo tu consulta. Para proporcionarte información precisa sobre la auditoría, ¿podrías proporcionar más detalles específicos sobre lo que necesitas?';
+      baseResponse = 'Entiendo tu consulta. Para proporcionarte información precisa sobre la auditoría, ¿podrías proporcionar más detalles específicos sobre lo que necesitas?';
+    }
+    
+    // Personalizar la respuesta según el modelo
+    switch (model) {
+      case 'gemini':
+        return `${baseResponse}\n\n[Respuesta generada por Gemini, aprovechando mi entrenamiento multitarea en diversos dominios]`;
+      
+      case 'claude':
+        return `${baseResponse}\n\n[Utilizando Claude para este análisis. Como asistente especializado en documentos, puedo procesar información de auditoría con alta precisión]`;
+      
+      case 'gpt4':
+        return `${baseResponse}\n\n[Análisis de GPT-4: He procesado tu consulta considerando múltiples variables y contextos relevantes para auditoría]`;
+      
+      case 'mock':
+      default:
+        return baseResponse;
     }
   };
 

@@ -1,0 +1,11 @@
+{
+  "name": "supabase-setup",
+  "version": "1.0.0",
+  "description": "Script para configurar tablas en Supabase",
+  "type": "module",
+  "main": "setup-supabase.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "dotenv": "^16.4.5"
+  }
+} 

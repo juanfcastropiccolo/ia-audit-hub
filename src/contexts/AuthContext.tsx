@@ -16,6 +16,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userTableError, setUserTableError] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -31,21 +32,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Create or update user record in users table if session exists
-      if (session?.user) {
+      // Create or update user record in users table if session exists and no previous error
+      if (session?.user && !userTableError) {
         supabase.from('users')
           .upsert({ 
             id: session.user.id, 
             email: session.user.email 
           })
           .then(({ error }) => {
-            if (error) console.error('Error updating user record:', error);
+            if (error) {
+              console.error('Error updating user record:', error);
+              
+              // Si es error de tabla que no existe, marca la bandera para evitar más llamadas
+              if (error.code === '42P01') {
+                setUserTableError(true);
+              }
+            }
           });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [userTableError]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
