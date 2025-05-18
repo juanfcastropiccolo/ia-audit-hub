@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
@@ -100,9 +99,9 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden">
+    <div className="w-screen h-screen flex flex-col md:flex-row overflow-hidden">
       {/* Left side - Brand panel with gradient */}
-      <div className="hidden md:flex md:flex-col md:w-1/2 min-w-[280px] max-w-[50%] relative bg-gradient-to-br from-indigo via-purple to-lavender">
+      <div className="hidden md:flex md:flex-col md:w-1/2 relative bg-gradient-to-br from-indigo via-purple to-lavender">
         <div className="absolute inset-0">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple/20 blur-3xl animate-pulse"></div>
           <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-softYellow/20 blur-3xl"></div>
@@ -113,7 +112,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <img 
               src={logoUrl} 
               alt="AUDIT-IA Logo" 
-              className="h-10 md:h-16 max-w-[160px] w-auto object-contain"
+              className="h-10 md:h-16 w-auto max-w-[160px] object-contain"
               aria-label="AUDIT-IA company logo"
               onError={(e) => {
                 console.error('Error loading logo from Supabase, falling back to local logo');
@@ -127,7 +126,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white">
               {t('ai_audit_platform')}
             </h1>
-            <p className="text-base md:text-lg lg:text-xl text-gray-100 max-w-md">
+            <p className="text-base md:text-lg lg:text-xl text-gray-100 max-w-full">
               {t('ai_audit_description')}
             </p>
             <div className="h-1 w-20 bg-softYellow rounded"></div>
@@ -140,7 +139,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
       </div>
       
       {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-gray-900">
+      <div className="w-full md:w-1/2 flex items-center justify-center p-4 bg-white dark:bg-gray-900">
         {/* Logo for mobile view only */}
         <div className="md:hidden absolute top-0 left-0 w-full flex justify-center py-6">
           <img 
@@ -156,13 +155,13 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           />
         </div>
 
-        <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl transition-all duration-300 
+        <div className="w-full max-w-md p-4 sm:p-6 rounded-xl transition-all duration-300 
                       border border-gray-100 dark:border-gray-800 
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
                       bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm
                       md:mt-0 mt-16">
-          <div className="mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-indigo dark:text-lavender">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-indigo dark:text-lavender">
               {t('welcome_back')}
             </h2>
             <p className="text-gray-600 dark:text-gray-300 mt-2">
@@ -171,14 +170,14 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
           
           {error && (
-            <div className="mb-6 p-4 bg-softYellow/20 border-l-4 border-softYellow text-indigo dark:bg-softYellow/10 dark:text-softYellow rounded">
+            <div className="mb-4 p-3 bg-softYellow/20 border-l-4 border-softYellow text-indigo dark:bg-softYellow/10 dark:text-softYellow rounded">
               <p>{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="group">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" htmlFor="email">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="email">
                 {t('email')}
               </label>
               <div className="relative">
@@ -192,7 +191,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg 
+                  className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg 
                           focus:ring-2 focus:ring-indigo focus:border-indigo 
                           dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
@@ -203,7 +202,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
             </div>
 
             <div className="group">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="password">
                   {t('password')}
                 </label>
@@ -222,7 +221,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 w-full px-4 py-2.5 border border-gray-300 rounded-lg 
+                  className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg 
                           focus:ring-2 focus:ring-indigo focus:border-indigo 
                           dark:bg-gray-800/50 dark:border-gray-700 dark:text-white dark:focus:ring-purple
                           transition-colors duration-200"
@@ -242,10 +241,10 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
             </div>
 
-            <div className="pt-1 space-y-3">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('role_selection')}</div>
+            <div className="pt-1 space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('role_selection')}</div>
               <div className="flex space-x-3">
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
                               transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
@@ -253,12 +252,12 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     value="client"
                     checked={formData.role === 'client'}
                     onChange={handleChange}
-                    className="form-radio text-indigo focus:ring-indigo mr-2"
+                    className="form-radio text-indigo focus:ring-indigo mr-1"
                     disabled={isLoading}
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{t('role_client')}</span>
                 </label>
-                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
+                <label className="relative flex items-center bg-gray-50 dark:bg-gray-800/50 px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer w-1/2 
                               transition-all hover:border-indigo dark:hover:border-purple hover:shadow-md">
                   <input
                     type="radio"
@@ -266,7 +265,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     value="admin"
                     checked={formData.role === 'admin'}
                     onChange={handleChange}
-                    className="form-radio text-indigo focus:ring-indigo mr-2"
+                    className="form-radio text-indigo focus:ring-indigo mr-1"
                     disabled={isLoading}
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{t('role_admin')}</span>
@@ -301,7 +300,7 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full flex justify-center items-center py-2.5 px-4 
+              className="w-full flex justify-center items-center py-2 px-4 
                       bg-indigo hover:bg-indigo/90 text-white font-medium rounded-lg 
                       shadow transition duration-150 ease-in-out 
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo 
