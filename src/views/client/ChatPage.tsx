@@ -2,7 +2,6 @@ import { useRef, useState, useEffect } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import type { LLMModel } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { v4 as uuidv4 } from 'uuid';
 
 // Función para obtener el nombre de visualización del modelo
 const getModelDisplayName = (model: LLMModel): string => {
@@ -104,14 +103,85 @@ const ChatHeader = ({
   );
 };
 
+// Componente FilePreview para mostrar vista previa del archivo seleccionado
+const FilePreview = ({ 
+  file, 
+  onRemove 
+}: { 
+  file: File; 
+  onRemove: () => void;
+}) => {
+  return (
+    <div className="mt-2 p-2 bg-gray-700/70 rounded-lg flex items-center">
+      <div className="flex-1 flex items-center overflow-hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-300 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+        </svg>
+        <span className="truncate text-sm text-gray-200">{file.name}</span>
+        <span className="ml-2 text-xs text-gray-400">{formatFileSize(file.size)}</span>
+      </div>
+      <button 
+        onClick={onRemove}
+        className="ml-2 p-1 text-gray-400 hover:text-gray-200 rounded-full hover:bg-gray-600"
+        aria-label="Eliminar archivo"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  );
+};
+
+// Utilidad para formatear el tamaño de archivo
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+// Componente para renderizar archivos adjuntos en mensajes
+const MessageAttachment = ({ fileName, fileUrl, fileType }: { fileName?: string; fileUrl?: string; fileType?: string }) => {
+  if (!fileName || !fileUrl) return null;
+  
+  const isImage = fileType?.startsWith('image/');
+  
+  return (
+    <div className="mt-3 rounded-lg overflow-hidden border border-gray-600">
+      {isImage ? (
+        <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+          <img src={fileUrl} alt={fileName} className="max-h-48 max-w-full object-contain" />
+        </a>
+      ) : (
+        <a 
+          href={fileUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="p-3 bg-gray-700/30 flex items-center hover:bg-gray-700/50 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-300 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+          </svg>
+          <div className="overflow-hidden">
+            <span className="block truncate text-sm font-medium text-gray-200">{fileName}</span>
+            <span className="text-xs text-gray-400">Descargar archivo</span>
+          </div>
+        </a>
+      )}
+    </div>
+  );
+};
+
 function ChatPage() {
-  const { messages, sendMessage, isLoading, error } = useChat();
+  const { messages, sendMessage, uploadFile, isLoading, error } = useChat();
   const { signOut } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedModel, setSelectedModel] = useState<LLMModel>('mock');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ fileName: string; fileUrl: string; fileType: string } | null>(null);
   
   // Auto-scroll a mensajes nuevos
   useEffect(() => {
@@ -127,12 +197,18 @@ function ChatPage() {
   };
   
   const handleSendMessage = async () => {
-    if (!currentMessage.trim() || isLoading) return;
+    if ((!currentMessage.trim() && !fileInfo) || isLoading) return;
     
     try {
-      // Pasar el modelo seleccionado al enviar el mensaje
-      await sendMessage(currentMessage, selectedModel);
+      // Pasar el modelo seleccionado al enviar el mensaje y la info del archivo si existe
+      await sendMessage(
+        currentMessage, 
+        selectedModel, 
+        fileInfo || undefined
+      );
       setCurrentMessage('');
+      setSelectedFile(null);
+      setFileInfo(null);
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -153,10 +229,29 @@ function ChatPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    console.log('File selected:', file.name);
+    // Mostrar el archivo seleccionado en la UI
+    setSelectedFile(file);
     
-    // Reset the input
+    // Subir el archivo a Supabase y obtener la URL
+    try {
+      const result = await uploadFile(file);
+      if (result) {
+        setFileInfo(result);
+      } else {
+        setSelectedFile(null);
+      }
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      setSelectedFile(null);
+    }
+    
+    // Reset el input
     if (e.target) e.target.value = '';
+  };
+  
+  const handleFileRemove = () => {
+    setSelectedFile(null);
+    setFileInfo(null);
   };
 
   return (
@@ -173,11 +268,11 @@ function ChatPage() {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt"
+        accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
       />
       
       {error && (
-        <div className="absolute top-14 left-0 right-0 mx-auto max-w-md bg-red-500/80 text-white p-3 rounded-lg backdrop-blur-sm text-sm">
+        <div className="absolute top-14 left-0 right-0 mx-auto max-w-md bg-red-500/80 text-white p-3 rounded-lg backdrop-blur-sm text-sm z-50">
           <p>{error}</p>
         </div>
       )}
@@ -200,6 +295,14 @@ function ChatPage() {
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{msg.message}</div>
+                    
+                    {/* Mostrar archivo adjunto si existe */}
+                    <MessageAttachment 
+                      fileName={msg.fileName} 
+                      fileUrl={msg.fileUrl} 
+                      fileType={msg.fileType} 
+                    />
+                    
                     <div className="flex justify-between mt-1 text-xs opacity-75">
                       {msg.model && (
                         <span className="text-xs opacity-70">{msg.model}</span>
@@ -214,6 +317,7 @@ function ChatPage() {
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center text-gray-500">
+                <h2 className="text-2xl font-bold mb-4">Ready when you are.</h2>
                 <p>Envía un mensaje para comenzar una conversación</p>
               </div>
             </div>
@@ -223,11 +327,20 @@ function ChatPage() {
         {/* Input para enviar mensaje */}
         <div className="px-4 py-4 flex flex-col items-center justify-center">
           <div className="relative w-full max-w-[600px]">
+            {/* Preview de archivo si hay seleccionado */}
+            {selectedFile && (
+              <FilePreview 
+                file={selectedFile} 
+                onRemove={handleFileRemove} 
+              />
+            )}
+            
             <div className="relative flex items-center w-full bg-gray-800/50 border border-gray-700/60 rounded-lg backdrop-blur-sm overflow-hidden">
               <button 
                 onClick={handleUploadClick} 
-                className="p-3 text-gray-400 hover:text-gray-200 transition-colors"
+                className={`p-3 ${isLoading ? 'text-gray-600' : 'text-gray-400 hover:text-gray-200'} transition-colors`}
                 aria-label="Upload attachment"
+                disabled={isLoading}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                   <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
@@ -268,13 +381,17 @@ function ChatPage() {
                 </button>
                 <button
                   onClick={handleSendMessage}
-                  disabled={!currentMessage.trim() || isLoading}
-                  className={`p-1.5 text-white rounded-full ${currentMessage.trim() && !isLoading ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 text-gray-400'} transition-colors ml-1`}
+                  disabled={(!currentMessage.trim() && !fileInfo) || isLoading}
+                  className={`p-1.5 text-white rounded-full ${(currentMessage.trim() || fileInfo) && !isLoading ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 text-gray-400'} transition-colors ml-1`}
                   aria-label="Send message"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
-                  </svg>
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                      <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
