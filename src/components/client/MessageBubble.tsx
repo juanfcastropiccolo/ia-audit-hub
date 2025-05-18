@@ -1,3 +1,4 @@
+
 interface MessageBubbleProps {
   sender: string;
   text: string;
@@ -7,18 +8,25 @@ interface MessageBubbleProps {
 function MessageBubble({ sender, text, timestamp }: MessageBubbleProps) {
   const isUser = sender === 'client';
   
+  // Styling classes based on sender
+  const containerClasses = isUser 
+    ? "self-end max-w-[80%]" 
+    : "self-start max-w-[80%]";
+    
   const bubbleClasses = isUser 
-    ? 'bg-indigo text-white self-end rounded-t-lg rounded-bl-lg' 
-    : 'bg-lavender text-gray-900 self-start rounded-t-lg rounded-br-lg';
+    ? "bg-primary text-white rounded-2xl rounded-br-sm" 
+    : "bg-white dark:bg-gray-800 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm";
     
   return (
-    <div className={`max-w-[80%] px-4 py-2 shadow-sm mb-2 ${bubbleClasses}`}>
-      <div className="whitespace-pre-wrap break-words">{text}</div>
-      {timestamp && (
-        <div className="text-xs opacity-70 text-right mt-1">
-          {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
-      )}
+    <div className={containerClasses}>
+      <div className={`px-4 py-2 shadow-sm ${bubbleClasses}`}>
+        <div className="whitespace-pre-wrap break-words text-sm">{text}</div>
+        {timestamp && (
+          <div className="text-xs opacity-70 text-right mt-1">
+            {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
