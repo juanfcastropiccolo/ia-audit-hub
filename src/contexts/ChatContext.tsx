@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendMessageToLLM, uploadFileForAnalysis } from '../api/apiService';
 
 // Lista de modelos disponibles
-export type LLMModel = 'mock' | 'gemini' | 'claude' | 'gpt4';
+export type LLMModel = 'mock' | 'gemini' | 'claude' | 'gpt4' | 'assistant' | 'system' | 'error' | 'error_fallback';
 
 export type Message = {
   id: string;
@@ -48,7 +48,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sender: 'assistant',
         message: '¡Bienvenido al chat de auditoría! Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?',
         timestamp: new Date().toISOString(),
-        model: 'assistant'
+        model: 'assistant' as LLMModel
       };
       setMessages([welcomeMessage]);
     }
@@ -69,7 +69,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         
         // Fetch existing messages
-        const { data, error: fetchError } = await supabase
+        const { data: messagesData, error: fetchError } = await supabase
           .from('messages')
           .select('*')
           .eq('user_id', user.id)
@@ -86,7 +86,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             setError('No se pudieron cargar los mensajes. Por favor, intenta nuevamente.');
           }
         } else if (isMounted) {
-          setMessages(data || []);
+          setMessages(messagesData || []);
         }
       } catch (err) {
         console.error('Failed to fetch messages:', err);
@@ -171,7 +171,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Upload file to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('chat-files')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -284,7 +284,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             sender: 'assistant',
             message: response.message,
             timestamp: new Date().toISOString(),
-            model: response.modelUsed
+            model: response.modelUsed as LLMModel
           };
           
           setMessages(prev => [...prev, assistantMessage]);
@@ -303,7 +303,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 user_id: user.id,
                 sender: 'assistant',
                 message: response.message,
-                model: response.modelUsed
+                model: response.modelUsed as LLMModel
               }
             ]);
           } catch (dbErr) {
@@ -324,7 +324,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               ? `[Modo de respaldo] He recibido tu archivo "${fileInfo.fileName}". ${mockResponse}`
               : `[Modo de respaldo] ${mockResponse}`,
             timestamp: new Date().toISOString(),
-            model: 'error_fallback'
+            model: 'error_fallback' as LLMModel
           };
           
           setMessages(prev => [...prev, fallbackMessage]);
@@ -340,7 +340,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sender: 'assistant',
         message: 'Lo siento, ocurrió un error al procesar tu mensaje. Por favor, intenta nuevamente.',
         timestamp: new Date().toISOString(),
-        model: 'error'
+        model: 'error' as LLMModel
       };
       
       setMessages(prev => [...prev, errorMessage]);

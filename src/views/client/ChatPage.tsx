@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import type { LLMModel } from '../../contexts/ChatContext';
@@ -12,6 +11,10 @@ const getModelDisplayName = (model: LLMModel): string => {
     case 'gemini': return 'Gemini';
     case 'claude': return 'Claude';
     case 'gpt4': return 'GPT-4';
+    case 'assistant': return 'Asistente';
+    case 'system': return 'Sistema';
+    case 'error': return 'Error';
+    case 'error_fallback': return 'Respaldo';
     default: return 'Desconocido';
   }
 };
@@ -198,7 +201,6 @@ function ChatPage() {
           <div className="flex items-center space-x-3">
             <div className="relative">
               <button 
-                onClick={() => {}}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm rounded border border-gray-600 text-gray-200 hover:bg-gray-700 transition-all"
               >
                 <span>Modelo: {getModelDisplayName(selectedModel)}</span>
@@ -278,7 +280,7 @@ function ChatPage() {
                     
                     <div className="flex justify-between mt-1 text-xs opacity-75">
                       {msg.model && (
-                        <span className="text-xs opacity-70">{msg.model}</span>
+                        <span className="text-xs opacity-70">{getModelDisplayName(msg.model)}</span>
                       )}
                       <span>{new Date(msg.timestamp).toLocaleTimeString()}</span>
                     </div>
