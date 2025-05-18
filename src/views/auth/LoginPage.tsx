@@ -100,62 +100,66 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden">
-      {/* Left side - Brand panel with gradient */}
-      <div className="hidden md:flex md:flex-col md:w-1/2 min-w-[280px] max-w-[50%] relative bg-gradient-to-br from-indigo via-purple to-lavender">
-        <div className="absolute inset-0">
+    <div className="login-container">
+      {/* Left side - Brand panel with illustration */}
+      <div className="hidden md:block md:w-1/2 bg-gradient-to-br from-indigo via-purple to-lavender relative overflow-hidden">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 z-0">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[50%] rounded-full bg-purple/20 blur-3xl animate-pulse"></div>
           <div className="absolute bottom-[-5%] left-[-5%] w-[40%] h-[40%] rounded-full bg-softYellow/20 blur-3xl"></div>
         </div>
         
-        <div className="relative z-10 flex flex-col justify-between p-6 md:p-10 h-full">
+        <div className="relative z-10 flex flex-col h-full p-8 justify-between">
+          {/* Logo */}
           <div className="flex items-center">
             <img 
               src={logoUrl} 
               alt="AUDIT-IA Logo" 
-              className="h-10 md:h-16 max-w-[160px] w-auto object-contain"
+              className="h-12 md:h-16 w-auto object-contain"
               aria-label="AUDIT-IA company logo"
-              onError={(e) => {
-                console.error('Error loading logo from Supabase, falling back to local logo');
-                e.currentTarget.onerror = null; // Prevent infinite error loops
-                setLogoUrl('/logo.png');
-              }}
+              onError={() => setLogoUrl('/logo.png')}
             />
           </div>
           
-          <div className="z-10 flex flex-col space-y-4 md:space-y-6">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white">
+          {/* Tagline and Description */}
+          <div className="space-y-4 animate-fade-in">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
               {t('ai_audit_platform')}
             </h1>
-            <p className="text-base md:text-lg lg:text-xl text-gray-100 max-w-md">
+            <p className="text-base sm:text-lg text-gray-100 max-w-md">
               {t('ai_audit_description')}
             </p>
             <div className="h-1 w-20 bg-softYellow rounded"></div>
           </div>
           
-          <div className="z-10 text-gray-200 text-sm">
+          {/* Footer */}
+          <div className="text-gray-200 text-sm">
             © {new Date().getFullYear()} AUDIT-IA
           </div>
         </div>
       </div>
       
       {/* Right side - Login form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-gray-900">
-        {/* Logo for mobile view only */}
+      <div className="w-full md:w-1/2 min-h-screen flex items-center justify-center p-4 sm:p-6 bg-white dark:bg-gray-900">
+        {/* Mobile logo */}
         <div className="md:hidden absolute top-0 left-0 w-full flex justify-center py-6">
           <img 
             src={logoUrl} 
             alt="AUDIT-IA Logo" 
             className="h-12 w-auto object-contain"
             aria-label="AUDIT-IA company logo - mobile view"
-            onError={(e) => {
-              console.error('Error loading logo from Supabase, falling back to local logo');
-              e.currentTarget.onerror = null; // Prevent infinite error loops
-              setLogoUrl('/logo.png');
-            }}
+            onError={() => setLogoUrl('/logo.png')}
           />
         </div>
+        
+        {/* Theme toggle (upper right) */}
+        <div className="absolute top-4 right-4 z-10">
+          <div className="md:hidden">
+            <div className="h-6"></div>
+          </div>
+        </div>
 
+        {/* Form card */}
         <div className="w-full max-w-md p-6 sm:p-8 rounded-2xl transition-all duration-300 
                       border border-gray-100 dark:border-gray-800 
                       shadow-xl dark:shadow-2xl dark:shadow-gray-900/30
