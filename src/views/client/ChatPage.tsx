@@ -1,8 +1,7 @@
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTranslation } from 'react-i18next';
 
 // Importar los componentes nuevos
 import ChatHeader from '../../components/client/ChatInterface/ChatHeader';
@@ -10,7 +9,6 @@ import ChatMessages from '../../components/client/ChatInterface/ChatMessages';
 import ChatInputArea from '../../components/client/ChatInterface/ChatInputArea';
 
 function ChatPage() {
-  const { t } = useTranslation();
   const { messages, sendMessage, isLoading, error } = useChat();
   const { signOut, user } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
