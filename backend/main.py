@@ -5,6 +5,13 @@ import time
 import json
 import sys
 import socket
+import socketio
+from fastapi.staticfiles import StaticFiles
+from fastapi import File, UploadFile, Form, Query
+from pydantic import BaseModel
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from dotenv import load_dotenv
@@ -13,6 +20,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from collections import deque
+import asyncio
 from fastapi import FastAPI
 
 # Add the parent directory to sys.path to ensure imports work
@@ -135,7 +143,7 @@ def run_assistant_agent(
     )
 
     # 5) Asegurar sesión
-    session = session_service.get_session(APP_NAME, client_id, session_id)
+    session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
     if not session:
         session = session_service.create_session(
             app_name=APP_NAME,
@@ -216,7 +224,7 @@ def run_senior_agent(
     )
 
     # 5) Asegurar sesión
-    session = session_service.get_session(APP_NAME, client_id, session_id)
+    session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
     if not session:
         session_service.create_session(
             app_name=APP_NAME,
@@ -297,7 +305,7 @@ def run_supervisor_agent(
     )
 
     # 4) Asegurar sesión
-    session = session_service.get_session(APP_NAME, client_id, session_id)
+    session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
     if not session:
         session_service.create_session(
             app_name=APP_NAME,
@@ -371,7 +379,8 @@ def run_manager_agent(
     )
 
     # 4) Asegurar sesión
-    if not session_service.get_session(APP_NAME, client_id, session_id):
+    session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
+    if not session:
         session_service.create_session(
             app_name=APP_NAME,
             user_id=client_id,
@@ -447,7 +456,7 @@ def run_team_agent(
     )
 
     # 4) Asegurar sesión
-    session = session_service.get_session(APP_NAME, client_id, session_id)
+    session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
     if not session:
         session = session_service.create_session(
             app_name=APP_NAME,
@@ -509,7 +518,7 @@ def run_team_agent(
                     response_text += part.text
 
         # 7) Actualizar estado de sesión
-        session = session_service.get_session(APP_NAME, client_id, session_id)
+        session = session_service.get_session(app_name=APP_NAME, user_id=client_id, session_id=session_id)
         if session:
             session.state = {
                 **(session.state or {}),
@@ -596,24 +605,19 @@ def main():
 
     # ──────────── comprobación de credenciales ────────────
     if not os.getenv("GOOGLE_API_KEY"):
-        print("Error: GOOGLE_API_KEY no encontrada en variables de entorno o .env")
-        exit(1)
+        print("ADVERTENCIA: GOOGLE_API_KEY no encontrada. Algunas funcionalidades IA pueden no funcionar.")
 
     if args.anthropic and not os.getenv("ANTHROPIC_API_KEY"):
-        print("Error: ANTHROPIC_API_KEY no encontrada, pero se solicitó usar Anthropic")
-        exit(1)
+        print("ADVERTENCIA: ANTHROPIC_API_KEY no encontrada. Claude no estará disponible.")
 
     if args.openai and not os.getenv("OPENAI_API_KEY"):
-        print("Error: OPENAI_API_KEY no encontrada, pero se solicitó usar OpenAI")
-        exit(1)
+        print("ADVERTENCIA: OPENAI_API_KEY no encontrada. GPT-4 no estará disponible.")
 
     if args.supabase:
         if not (os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_KEY")):
             print(
-                "Error: Se activó --supabase pero faltan SUPABASE_URL o "
-                "SUPABASE_SERVICE_KEY en el entorno"
+                "ADVERTENCIA: Se activó --supabase pero faltan SUPABASE_URL o SUPABASE_SERVICE_KEY."
             )
-            exit(1)
 
     # ──────────── despachar según modo ────────────
     if args.mode == "interactive":
@@ -870,13 +874,13 @@ def run_api_mode(args):
 
     # Estado de la aplicación
     app_state = {
-        "session_service": initialize_session_service(use_supabase=args.supabase),
-        "use_anthropic": args.anthropic,
-        "use_openai": args.openai,
+        "session_service": initialize_session_service(use_supabase=False),
+        "use_anthropic": False,
+        "use_openai": False,
         "active_teams": {},  # Almacena los equipos activos
         "connected_clients": set(),  # Clientes conectados al WebSocket
         "uploaded_files": {},  # Almacena información sobre archivos cargados
-        "default_model": "gemini",  # Modelo por defecto
+        "default_model": "gpt4",  # Modelo por defecto (OpenAI GPT-4)
         "audit_log": deque(maxlen=MAX_AUDIT_LOG_ENTRIES) # UPDATED: Use deque for audit_log
     }
     
@@ -915,20 +919,24 @@ def run_api_mode(args):
             app_state["use_anthropic"] = (model_type == "claude")
             app_state["use_openai"] = (model_type == "gpt4")
             
-            # Emitir evento para registrar el cambio de modelo
-            await emit_audit_event({
-                "id": f"event_{uuid.uuid4().hex[:8]}",
-                "team_id": "system",
-                "agent_name": "system",
-                "event_type": "model_change",
-                "details": {
-                    "model_type": model_type,
-                    "use_anthropic": app_state["use_anthropic"],
-                    "use_openai": app_state["use_openai"]
-                },
-                "timestamp": datetime.now().isoformat(),
-                "importance": "high"
-            })
+            # Emitir evento para registrar el cambio de modelo en background
+            try:
+                import asyncio
+                asyncio.create_task(emit_audit_event({
+                    "id": f"event_{uuid.uuid4().hex[:8]}",
+                    "team_id": "system",
+                    "agent_name": "system",
+                    "event_type": "model_change",
+                    "details": {
+                        "model_type": model_type,
+                        "use_anthropic": app_state["use_anthropic"],
+                        "use_openai": app_state["use_openai"]
+                    },
+                    "timestamp": datetime.now().isoformat(),
+                    "importance": "high"
+                }))
+            except Exception:
+                pass
             
             print(f"Modelo cambiado a: {model_type}")
             
@@ -951,7 +959,7 @@ def run_api_mode(args):
             return {
                 "success": False,
                 "message": error_msg,
-                "model_type": app_state.get("default_model", "gemini")
+                "model_type": app_state.get("default_model", "gpt4")
             }
     
     # Eventos de Socket.IO
@@ -1104,49 +1112,72 @@ def run_api_mode(args):
             safe_filename = f"{file_id}{file_ext}"
             file_path = client_dir / safe_filename
             
-            # Guardar el archivo
+            # Guardar el archivo localmente
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             
-            # Almacenar información sobre el archivo cargado
-            if client_id not in app_state["uploaded_files"]:
-                app_state["uploaded_files"][client_id] = {}
-            
-            app_state["uploaded_files"][client_id][file_id] = {
-                "original_name": file.filename,
-                "saved_name": safe_filename,
-                "path": str(file_path),
-                "type": file_ext,
-                "size": os.path.getsize(file_path),
-                "upload_time": datetime.now().isoformat()
+            # Almacenar en Supabase Storage
+            # Intentar subir a Supabase Storage
+            try:
+                from supabase import create_client
+                from backend.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_SCHEMA
+                supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
+                bucket = supabase.storage.from_('chat-files')
+                storage_path = f"{client_id}/{safe_filename}"
+                with file_path.open('rb') as fobj:
+                    file_bytes = fobj.read()
+                upload_resp = bucket.upload(storage_path, file_bytes, {'upsert': True})
+                if upload_resp.error:
+                    log.error(f"Error uploading file to Supabase: {upload_resp.error.message}")
+                    file_url = None
+                else:
+                    public = bucket.get_public_url(storage_path)
+                    file_url = public.get('publicUrl')
+            except ImportError:
+                # Supabase client no disponible, caer en fallback local
+                file_url = None
+            # Almacenar información sobre el archivo en memoria
+            app_state.setdefault('uploaded_files', {})
+            app_state['uploaded_files'].setdefault(client_id, {})
+            app_state['uploaded_files'][client_id][file_id] = {
+                'original_name': file.filename,
+                'saved_name': safe_filename,
+                'path': str(file_path),
+                'type': file_ext,
+                'size': os.path.getsize(file_path),
+                'upload_time': datetime.now().isoformat(),
+                'storage_path': storage_path,
+                'file_url': file_url
             }
             
             print(f"Archivo cargado: {file.filename} -> {file_path}")
             
             # UPDATED: Use app_state default model if model_type is not provided
             if not model_type:
-                model_type = app_state.get("default_model", "gemini")
+                model_type = app_state.get("default_model", "gpt4")
                 
             use_anthropic = model_type == "claude" or app_state.get("use_anthropic", False)
             use_openai = model_type == "gpt4" or app_state.get("use_openai", False)
             
             # Emitir evento para registrar la carga de archivo
+            # Emitir evento de auditoría por carga de archivo
             await emit_audit_event({
-                "id": f"event_{uuid.uuid4().hex[:8]}",
-                "team_id": f"team_{client_id[:8]}",
-                "agent_name": f"{agent_type}_agent",
-                "event_type": "file_upload",
-                "details": {
-                    "client_id": client_id,
-                    "session_id": session_id,
-                    "file_name": file.filename,
-                    "file_id": file_id,
-                    "file_type": file_ext,
-                    "file_size": os.path.getsize(file_path),
-                    "model_used": model_type
+                'id': f"event_{uuid.uuid4().hex[:8]}",
+                'team_id': f"team_{client_id[:8]}",
+                'agent_name': f"{agent_type}_agent",
+                'event_type': 'file_upload',
+                'details': {
+                    'client_id': client_id,
+                    'session_id': session_id,
+                    'file_name': file.filename,
+                    'file_id': file_id,
+                    'file_type': file_ext,
+                    'file_size': os.path.getsize(file_path),
+                    'file_url': file_url,
+                    'model_used': model_type
                 },
-                "timestamp": datetime.now().isoformat(),
-                "importance": "high"
+                'timestamp': datetime.now().isoformat(),
+                'importance': 'high'
             })
             
             # Extraer contenido para análisis
@@ -1285,15 +1316,41 @@ def run_api_mode(args):
             # Let's rely on `app_state` for `use_supabase` or assume a default if not set.
             # For now, let's assume `initialize_session_service` called by agent runners handles this.
 
-            response_text = await asyncio.to_thread(
-                agent_func_to_run, 
-                client_id, 
-                session_id, 
-                message_text, 
-                # use_supabase=app_state.get("use_supabase_config", False), # Assuming this config exists or is passed to agent_func
-                use_anthropic=use_anthropic,
-                use_openai=use_openai
-            )
+            # Determinar uso de Supabase
+            use_supabase_flag = app_state.get("use_supabase", False)
+            # Intento primario con el modelo solicitado
+            try:
+                response_text = await asyncio.to_thread(
+                    agent_func_to_run,
+                    client_id, session_id, message_text,
+                    use_supabase=use_supabase_flag,
+                    use_anthropic=use_anthropic,
+                    use_openai=use_openai
+                )
+            except Exception as primary_err:
+                # Secuencia de fallback: gpt4 -> gemini -> claude
+                fallback_sequence = ['gpt4', 'gemini', 'claude']
+                response_text = None
+                for fb in fallback_sequence:
+                    if fb == requested_model_type:
+                        continue
+                    fb_anthropic = (fb == 'claude')
+                    fb_openai = (fb == 'gpt4')
+                    try:
+                        response_text = await asyncio.to_thread(
+                            agent_func_to_run,
+                            client_id, session_id, message_text,
+                            use_supabase=use_supabase_flag,
+                            use_anthropic=fb_anthropic,
+                            use_openai=fb_openai
+                        )
+                        final_model_type_for_response = fb
+                        break
+                    except Exception:
+                        continue
+                if response_text is None:
+                    # Si todos fallan, propagar el error original
+                    raise primary_err
             
             # Ensure use_supabase is passed to the agent function correctly
             # The run_..._agent functions take use_supabase as a direct argument.
@@ -1446,6 +1503,33 @@ def run_api_mode(args):
                 status_code=500,
                 content={"error": error_message}
             )
+
+    # Endpoint to list clients from Supabase
+    @app.get("/api/clients")
+    async def get_clients():
+        try:
+            from supabase import create_client
+            from backend.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_SCHEMA
+            supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
+            result = supabase.table("users").select("*").eq("role", "client").execute()
+            data = result.data or []
+            return JSONResponse(status_code=200, content=data)
+        except Exception as e:
+            log.error(f"Error fetching clients: {e}", exc_info=True)
+            return JSONResponse(status_code=500, content={"error": "Error interno al obtener clientes"})
+
+    # Endpoint to list active audit teams
+    @app.get("/api/teams", response_model=List[AuditTeam])
+    async def list_teams():
+        return list(app_state.get("active_teams", {}).values())
+
+    # Endpoint to list audit events, optional filtering by team_id
+    @app.get("/api/events", response_model=List[AuditEvent])
+    async def list_events(team_id: Optional[str] = None, limit: int = Query(50)):
+        events = list(app_state.get("audit_log", []))
+        if team_id:
+            events = [e for e in events if e.get("team_id") == team_id]
+        return events
 
     # Iniciar servidor
     print(f"Iniciando servidor API en {args.host}:{args.port}")

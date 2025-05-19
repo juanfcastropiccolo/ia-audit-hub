@@ -45,7 +45,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [subscribed, setSubscribed] = useState(false);
   const [tableErrorOccurred, setTableErrorOccurred] = useState(false); // For Supabase table status
   const [sessionId] = useState<string>(() => uuidv4());
-  const [currentModel, setCurrentModelInternal] = useState<ApiLLMModel_Internal>('gemini'); // Default model
+  const [currentModel, setCurrentModelInternal] = useState<ApiLLMModel_Internal>('gpt4'); // Default model: GPT-4
 
   const setCurrentModel = useCallback((model: ApiLLMModel_Internal) => {
     setCurrentModelInternal(model);

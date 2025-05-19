@@ -7,6 +7,7 @@ import ClientsPage from './views/admin/ClientsPage';
 import LogsPage from './views/admin/LogsPage';
 import ChatPage from './views/client/ChatPage';
 import LoginPage from './views/auth/LoginPage';
+import ClientDetailPage from './components/admin/ClientDetailPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ChatProvider } from './contexts/ChatContext';
 import './App.css';
@@ -123,6 +124,7 @@ function AppRoutes() {
       }>
         <Route index element={<Navigate to="clients" />} />
         <Route path="clients" element={<ClientsPage />} />
+        <Route path="clients/:clientId" element={<ClientDetailPage />} />
         <Route path="logs" element={<LogsPage />} />
       </Route>
       

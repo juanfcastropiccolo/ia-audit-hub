@@ -1,3 +1,4 @@
+// TEST PATCH
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
@@ -17,7 +18,6 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'client' as UserRole,
     remember: false
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -64,15 +64,11 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
       if (error) {
         setError(error.message || t('invalidCredentials'));
       } else {
-        // Store role in localStorage for app routing
-        localStorage.setItem('user', JSON.stringify({
-          email: formData.email,
-          role: formData.role
-        }));
-
-        onLoginSuccess(formData.role);
-        
-        if (formData.role === 'admin') {
+        // Determine role from stored Supabase profile
+        const stored = localStorage.getItem('user');
+        const role = stored ? JSON.parse(stored).role as UserRole : 'client';
+        onLoginSuccess(role);
+        if (role === 'admin') {
           navigate('/admin/clients');
         } else {
           navigate('/chat');

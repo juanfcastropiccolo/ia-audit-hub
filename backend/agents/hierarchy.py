@@ -29,31 +29,19 @@ def create_audit_team(client_id: str, use_anthropic: bool = False, use_openai: b
     # Configurar senior con el asistente como herramienta y sub_agente
     senior.sub_agents = [assistant]
     senior.tools.append(
-        FunctionTool(
-            func=assistant,
-            name="assistant_agent",
-            description="Asistente IA para tareas operativas básicas de auditoría"
-        )
+        FunctionTool(assistant)
     )
     
     # Configurar supervisor con el senior como herramienta y sub_agente
     supervisor.sub_agents = [senior]
     supervisor.tools.append(
-        FunctionTool(
-            func=senior,
-            name="senior_agent",
-            description="Senior IA para análisis y revisión de tareas operativas"
-        )
+        FunctionTool(senior)
     )
     
     # Configurar manager con el supervisor como herramienta y sub_agente
     manager.sub_agents = [supervisor]
     manager.tools.append(
-        FunctionTool(
-            func=supervisor,
-            name="supervisor_agent",
-            description="Supervisor IA para coordinación y control de calidad"
-        )
+        FunctionTool(supervisor)
     )
     
     # Guardar todos los agentes en un diccionario para referencia fácil

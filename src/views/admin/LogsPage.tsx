@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getAuditEvents } from '../../api/apiService';
 
 interface Log {
   id: number;
@@ -19,81 +20,27 @@ const LogsPage: React.FC = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
   
-  // Mock logs data
+  // Fetch logs from backend
   useEffect(() => {
-    // Simulate API call
     const fetchLogs = async () => {
       try {
-        // In a real app, this would be an API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Mock data
-        const mockLogs: Log[] = [
-          { 
-            id: 1, 
-            timestamp: '2025-05-15 14:30:22', 
-            client: 'Empresa A', 
-            event: 'Archivo subido', 
-            details: 'financial_report_2025.xlsx',
-            eventType: 'info'
-          },
-          { 
-            id: 2, 
-            timestamp: '2025-05-15 14:29:45', 
-            client: 'Empresa A', 
-            event: 'Respuesta del asistente', 
-            details: 'Respondió a consulta sobre discrepancias financieras',
-            eventType: 'success'
-          },
-          { 
-            id: 3, 
-            timestamp: '2025-05-15 14:28:10', 
-            client: 'Empresa A', 
-            event: 'Consulta del usuario', 
-            details: 'Preguntó sobre posibles discrepancias financieras',
-            eventType: 'info'
-          },
-          { 
-            id: 4, 
-            timestamp: '2025-05-15 13:45:22', 
-            client: 'Empresa B', 
-            event: 'Sesión iniciada', 
-            details: 'Nueva sesión de auditoría iniciada',
-            eventType: 'info'
-          },
-          { 
-            id: 5, 
-            timestamp: '2025-05-14 10:15:33', 
-            client: 'Empresa C', 
-            event: 'Error de procesamiento', 
-            details: 'No se pudo procesar el archivo debido a formato incompatible',
-            eventType: 'error'
-          },
-          { 
-            id: 6, 
-            timestamp: '2025-05-13 16:42:18', 
-            client: 'Empresa B', 
-            event: 'Advertencia de auditoría', 
-            details: 'Se detectaron posibles irregularidades en las transacciones',
-            eventType: 'warning'
-          },
-        ];
-        
-        setLogs(mockLogs);
-      } catch (error) {
-        console.error('Error fetching logs:', error);
+        setLoading(true);
+        setError(null);
+        const data = await getAuditEvents();
+        setLogs(data);
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+        setError('No se pudieron cargar los logs.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchLogs();
   }, []);
 
   // Filter logs based on search term and date
   useEffect(() => {
     let results = logs;
-    
     // Filter by search term
     if (searchTerm) {
       results = results.filter(log => 
@@ -102,14 +49,12 @@ const LogsPage: React.FC = () => {
         log.details.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
-    // Filter by date
+    // Filter by date (YYYY-MM-DD)
     if (dateFilter) {
       results = results.filter(log => 
         log.timestamp.startsWith(dateFilter)
       );
     }
-    
     setFilteredLogs(results);
   }, [logs, searchTerm, dateFilter]);
 

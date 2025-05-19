@@ -14,7 +14,10 @@ SUPABASE_SCHEMA      = "public"               # opcional
 
 from google.adk.sessions import InMemorySessionService, Session
 from typing import Optional, Dict, Any, List
-from supabase import create_client
+try:
+    from supabase import create_client
+except ImportError:
+    create_client = None
 import time
 
 from backend.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_SCHEMA  # ajusta a tu módulo
@@ -29,8 +32,11 @@ class SupabaseSessionService(InMemorySessionService):
     def __init__(self, table: str = _DEFAULT_TABLE):
         super().__init__()
         self.table = table
-        # Conexión “singleton” para todo el proceso
-        self.supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
+        # Conexión “singleton” para todo el proceso (si supabase-py está instalado)
+        if create_client:
+            self.supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
+        else:
+            self.supabase = None
 
     # ──────────────────────────── CRUD público ────────────────────────────
 
@@ -57,6 +63,8 @@ class SupabaseSessionService(InMemorySessionService):
 
     def get_session(self, app_name: str, user_id: str, session_id: str) -> Optional[Session]:
         """Obtiene una sesión, o None si no existe."""
+        if not self.supabase:
+            return None
         result = (
             self.supabase.table(self.table)
             .select("*")

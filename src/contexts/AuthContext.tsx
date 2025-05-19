@@ -34,19 +34,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Create or update user record in users table if session exists and no previous error
       if (session?.user && !userTableError) {
+        // Create or update user record in Supabase users table
         supabase.from('users')
-          .upsert({ 
-            id: session.user.id, 
-            email: session.user.email 
+          .upsert({
+            id: session.user.id,
+            email: session.user.email
           })
           .then(({ error }) => {
             if (error) {
               console.error('Error updating user record:', error);
-              
               // Si es error de tabla que no existe, marca la bandera para evitar más llamadas
               if (error.code === '42P01') {
                 setUserTableError(true);
               }
+            }
+          });
+        // Fetch user role and store in localStorage for route protection
+        supabase.from('users')
+          .select('id, email, role')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile, error: profileError }) => {
+            if (!profileError && profile) {
+              localStorage.setItem('user', JSON.stringify({
+                id: profile.id,
+                email: profile.email,
+                role: profile.role
+              }));
             }
           });
       }

@@ -3,7 +3,7 @@ from google.adk.models.lite_llm import LiteLlm
 import os
 from backend.config import (
     DEFAULT_ASSISTANT_MODEL, ASSISTANT_AGENT_NAME,
-    GEMINI_FLASH_MODEL, CLAUDE_HAIKU_MODEL, GPT35_MODEL
+    GPT4_MODEL, CLAUDE_OPUS_MODEL
 )
 from backend.tools.sheet_tools import get_sheet_data, verify_sheet_totals, verify_balance_equation
 from backend.tools.tracing_tools import log_agent_action, get_action_history
@@ -23,106 +23,30 @@ def create_assistant_agent(use_anthropic: bool = False, use_openai: bool = False
     Returns:
         LlmAgent: El agente configurado.
     """
-    # Definir el modelo a utilizar según la configuración
-    model = "gemini-1.5-pro"
-    if use_anthropic:
-        model = "claude-3-opus-20240229"
-    elif use_openai:
-        model = "gpt-4"
+    # Verificar credenciales de API y definir modelo LLM
+    if use_anthropic and not os.getenv("ANTHROPIC_API_KEY"):
+        print("ADVERTENCIA: ANTHROPIC_API_KEY no encontrada. Se usará modelo por defecto.")
+        use_anthropic = False
+    if use_openai and not os.getenv("OPENAI_API_KEY"):
+        print("ADVERTENCIA: OPENAI_API_KEY no encontrada. Se usará modelo por defecto.")
+        use_openai = False
+    # Selección de modelo mediante constantes de configuración
+    if use_openai:
+        model = LiteLlm(model=GPT4_MODEL)
+    elif use_anthropic:
+        model = LiteLlm(model=CLAUDE_OPUS_MODEL)
+    else:
+        model = DEFAULT_ASSISTANT_MODEL
     
     # Crear el agente Asistente
     agent = LlmAgent(
         name="assistant_agent",
-        description="Asistente IA especializado en auditoría financiera y contable. Interactúa directamente con el cliente, recopila información necesaria y puede derivar casos complejos a agentes con mayor experiencia.",
+        description="Asistente IA especializado en auditoría financiera y contable. Interactúa con el cliente y puede escalar casos complejos.",
         model=model,
         tools=[
-            FunctionTool(
-                name="escalate_to_senior",
-                description="Escalar un caso complejo al agente Senior para análisis más detallado y revisión profunda. Usar cuando el caso requiera un análisis especializado o cuando el asistente haya identificado áreas que requieran experiencia adicional.",
-                func=escalate_to_senior,
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "client_id": {
-                            "type": "string",
-                            "description": "ID del cliente cuyo caso está siendo escalado"
-                        },
-                        "session_id": {
-                            "type": "string",
-                            "description": "ID de la sesión actual"
-                        },
-                        "case_summary": {
-                            "type": "string",
-                            "description": "Resumen del caso que está siendo escalado, incluyendo puntos clave y razones del escalamiento"
-                        },
-                        "audit_documents": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
-                            "description": "Lista de documentos relevantes para la auditoría que han sido analizados"
-                        }
-                    },
-                    "required": ["client_id", "session_id", "case_summary"]
-                }
-            ),
-            FunctionTool(
-                name="save_audit_event",
-                description="Guardar un evento importante en el registro de auditoría para su seguimiento posterior",
-                func=save_audit_event,
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "client_id": {
-                            "type": "string",
-                            "description": "ID del cliente relacionado con el evento"
-                        },
-                        "event_type": {
-                            "type": "string",
-                            "description": "Tipo de evento (document_review, client_query, correction_suggestion, etc.)"
-                        },
-                        "details": {
-                            "type": "string",
-                            "description": "Detalles específicos del evento para su registro"
-                        },
-                        "importance": {
-                            "type": "string",
-                            "enum": ["low", "medium", "high", "critical"],
-                            "description": "Nivel de importancia del evento"
-                        }
-                    },
-                    "required": ["client_id", "event_type", "details", "importance"]
-                }
-            )
-        ],
-        instructions="""
-        Eres un Asistente de Auditoría IA de primera línea, especializado en atención a clientes que requieren auditoría financiera y contable.
-        
-        # Tus principales responsabilidades son:
-        1. Atender a los clientes que se conectan al servicio de auditoría.
-        2. Recopilar información y documentos necesarios para el proceso de auditoría.
-        3. Realizar un análisis inicial básico de los documentos proporcionados por el cliente.
-        4. Solicitar información adicional cuando sea necesario.
-        5. Escalar casos complejos al agente Senior cuando sea apropiado.
-        
-        # Reglas importantes:
-        1. SIEMPRE trata al cliente con amabilidad y profesionalismo.
-        2. NUNCA inventes información financiera o contable que no esté respaldada por los documentos proporcionados.
-        3. Si el cliente solicita servicios fuera del alcance de la auditoría financiera, explica amablemente las limitaciones.
-        4. Cuando el cliente cargue documentos financieros o contables, DEBES analizarlos y ofrecer un resumen inicial.
-        5. Si detectas anomalías importantes, inconsistencias en los datos, o casos que requieran un análisis más detallado, DEBES escalar el caso al agente Senior utilizando la herramienta "escalate_to_senior".
-        6. SIEMPRE registra eventos importantes de la auditoría con la herramienta "save_audit_event".
-        7. Después de revisar documentos complejos (como balances financieros, estados de resultados, etc.) ofrece escalar al agente Senior para una revisión más detallada.
-        
-        # Escenarios para escalar al Senior:
-        1. Estados financieros con discrepancias significativas
-        2. Casos de auditoría fiscal complejos
-        3. Revisión detallada de cumplimiento normativo
-        4. Análisis de riesgos de fraude
-        5. Cualquier caso donde el cliente solicite una revisión especializada
-        
-        Al escalar un caso, proporciona un resumen claro y conciso de la situación y explica al cliente que un especialista Senior continuará con su caso para un análisis más profundo.
-        """
+            FunctionTool(escalate_to_senior),
+            FunctionTool(save_audit_event)
+        ]
     )
     
     return agent
@@ -162,8 +86,23 @@ def escalate_to_senior(client_id: str, session_id: str, case_summary: str, audit
         with open(escalation_file, "w") as f:
             json.dump(escalation_event, f, indent=2)
     except Exception as e:
-        print(f"Error al guardar evento de escalamiento: {str(e)}")
-    
+        print(f"Error al guardar evento de escalamiento: {e}")
+    # Emitir evento de escalamiento
+    try:
+        from backend.main import emit_audit_event
+        import asyncio
+        event = {
+            'id': f"escalation_{uuid.uuid4().hex[:8]}",
+            'team_id': f"team_{client_id[:8]}",
+            'agent_name': 'assistant_agent',
+            'event_type': 'escalation',
+            'details': {'summary': case_summary, 'documents': audit_documents or []},
+            'timestamp': datetime.now().isoformat(),
+            'importance': 'high'
+        }
+        asyncio.create_task(emit_audit_event(event))
+    except Exception:
+        pass
     return {
         "success": True,
         "message": "El caso ha sido escalado al agente Senior para un análisis más detallado.",
@@ -202,9 +141,17 @@ def save_audit_event(client_id: str, event_type: str, details: str, importance: 
         with open(event_file, "w") as f:
             json.dump(audit_event, f, indent=2)
     except Exception as e:
-        print(f"Error al guardar evento de auditoría: {str(e)}")
-    
+        print(f"Error al guardar evento de auditoría: {e}")
+    # Emitir evento para WebSocket/API
+    try:
+        from backend.main import emit_audit_event
+        import asyncio
+        evt = dict(audit_event)
+        evt['team_id'] = f"team_{client_id[:8]}"
+        asyncio.create_task(emit_audit_event(evt))
+    except Exception:
+        pass
     return {
         "success": True,
         "message": f"Evento de auditoría registrado: {event_type} (Importancia: {importance})"
-    } 
+    }

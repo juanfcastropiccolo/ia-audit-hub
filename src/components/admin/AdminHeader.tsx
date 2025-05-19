@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Menu } from 'lucide-react';
 import ThemeToggle from '../common/ThemeToggle';
 
 interface User {
@@ -8,9 +9,10 @@ interface User {
 
 interface AdminHeaderProps {
   user?: User;
+  onToggleMobileMenu?: () => void;
 }
 
-function AdminHeader({ user }: AdminHeaderProps) {
+function AdminHeader({ user, onToggleMobileMenu }: AdminHeaderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   
@@ -39,7 +41,16 @@ function AdminHeader({ user }: AdminHeaderProps) {
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-6 py-3">
       <div className="flex justify-between items-center">
-        <div>
+        <div className="flex items-center space-x-2">
+          {/* Mobile menu toggle */}
+          <button
+            className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            onClick={onToggleMobileMenu}
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+          </button>
+          <div>
           <h1 className="text-xl font-bold text-gray-800 dark:text-white">Panel de Administración</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400">Auditoría IA</p>
         </div>

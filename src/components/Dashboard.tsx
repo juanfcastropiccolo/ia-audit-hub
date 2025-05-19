@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getAuditTeams, getAuditEvents, connectSocket, disconnectSocket } from '../api/api';
+import { getAuditTeams, getAuditEvents, connectSocket, disconnectSocket } from '../api/apiService';
 import type { AuditTeam, AuditEvent, Agent } from '../types';
 
 // UPDATED: Component for model selection
 const ModelSelector = () => {
   const [selectedModel, setSelectedModel] = useState<string>(() => {
-    return localStorage.getItem('selectedModel') || 'gemini';
+    return localStorage.getItem('selectedModel') || 'gpt4';
   });
   const [isChanging, setIsChanging] = useState(false);
   const [changeSuccess, setChangeSuccess] = useState<boolean | null>(null);
@@ -160,7 +160,7 @@ const TeamCard = ({ team, onSelect }: { team: AuditTeam, onSelect: (teamId: stri
         ))}
       </div>
       <button 
-        className="w-full text-center text-sm text-blue-700 hover:text-blue-900 font-medium"
+        className="w-full text-center text-sm bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition-colors"
         onClick={() => onSelect(team.id)}
       >
         Ver actividad

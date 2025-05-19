@@ -29,11 +29,9 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(BASE_DIR, "tmp", "reports"), exist_ok=True)
     os.makedirs(os.path.join(BASE_DIR, "uploads"), exist_ok=True)
     
-    # Configurar y iniciar el servidor FastAPI
-    uvicorn.run(
-        "backend.main:app",
-        host=host,
-        port=port,
-        reload=True,
-        log_level="info"
-    ) 
+    # Llamar a main() para registrar endpoints y lanzar Uvicorn
+    import sys
+    # Preparar argumentos para iniciar en modo API
+    sys.argv = [sys.argv[0], "--mode", "api", "--host", host, "--port", str(port)]
+    from backend.main import main
+    main()

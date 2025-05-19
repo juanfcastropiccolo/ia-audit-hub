@@ -9,8 +9,8 @@ module.exports = {
     extend: {
       colors: {
         softYellow: '#FFF2AF',
-        lavender: '#DAD2FF',
-        purple: '#B2A5FF',
+        lavenderMist: '#DAD2FF',
+        purpleTint: '#B2A5FF',
         indigo: '#493D9E',
         primary: '#493D9E',
         secondary: '#B2A5FF',

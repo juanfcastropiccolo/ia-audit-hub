@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
+import io from 'socket.io-client';
+import type { AuditTeam, AuditEvent } from '../types';
 
 // API URL configuration - Use the provided env variable or fallback
 const RAW_API_URL = import.meta.env.VITE_API_BASE_URL || `http://${window.location.hostname}:8000`;
@@ -218,4 +220,51 @@ export const connectWebSocket = (
     onError(error);
     return () => {};
   }
+};
+// Socket.IO connection for real-time admin features
+let socketIo: any = null;
+
+// Connect to Socket.IO server for audit events
+export const connectSocket = (clientId: string, onEventCallback: (event: AuditEvent) => void) => {
+  if (!socketIo) {
+    const SOCKET_URL = import.meta.env.VITE_WS_URL || `${RAW_API_URL}`;
+    socketIo = io(SOCKET_URL, { query: { clientId } });
+    socketIo.on('audit_event', (eventData: AuditEvent) => {
+      onEventCallback(eventData);
+    });
+    socketIo.on('connect', () => console.log('Socket.IO connected'));
+    socketIo.on('disconnect', () => console.log('Socket.IO disconnected'));
+  }
+  return socketIo;
+};
+
+// Disconnect Socket.IO
+export const disconnectSocket = () => {
+  if (socketIo) {
+    socketIo.disconnect();
+    socketIo = null;
+  }
+};
+
+// Fetch list of audit teams
+export const getAuditTeams = async (): Promise<AuditTeam[]> => {
+  const response = await fetch(`${API_URL}/api/teams`);
+  if (!response.ok) throw new Error(`Error fetching teams: ${response.statusText}`);
+  return response.json();
+};
+
+// Fetch list of audit events, optional team filter
+export const getAuditEvents = async (teamId?: string, limit: number = 50): Promise<AuditEvent[]> => {
+  let url = `${API_URL}/api/events?limit=${limit}`;
+  if (teamId) url += `&team_id=${teamId}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Error fetching events: ${response.statusText}`);
+  return response.json();
+};
+
+// Download audit report
+export const downloadAuditReport = async (sessionId: string): Promise<Blob> => {
+  const response = await fetch(`${API_URL}/api/report/${sessionId}`);
+  if (!response.ok) throw new Error(`Error downloading report: ${response.statusText}`);
+  return response.blob();
 };
