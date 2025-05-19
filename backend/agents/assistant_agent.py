@@ -1,6 +1,8 @@
 from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 import os
+import uuid
+
 from backend.config import (
     DEFAULT_ASSISTANT_MODEL, ASSISTANT_AGENT_NAME,
     GPT4_MODEL, CLAUDE_OPUS_MODEL
