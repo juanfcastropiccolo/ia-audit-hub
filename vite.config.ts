@@ -6,12 +6,8 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }: ConfigEnv) => ({
   plugins: [
-    react({
-      // Skip TypeScript checking during development
-      babel: {
-        plugins: []
-      }
-    }),
+    // Use default settings for React plugin (esbuild for TS, Babel for JSX)
+    react(),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {

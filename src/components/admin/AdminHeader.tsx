@@ -51,8 +51,9 @@ function AdminHeader({ user, onToggleMobileMenu }: AdminHeaderProps) {
             <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </button>
           <div>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Panel de Administración</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Auditoría IA</p>
+            <h1 className="text-xl font-bold text-gray-800 dark:text-white">Panel de Administración</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Auditoría IA</p>
+          </div>
         </div>
         
         <div className="flex items-center space-x-4">

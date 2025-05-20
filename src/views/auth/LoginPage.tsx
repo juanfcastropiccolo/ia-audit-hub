@@ -64,13 +64,35 @@ function LoginPage({ onLoginSuccess }: LoginPageProps) {
       if (error) {
         setError(error.message || t('invalidCredentials'));
       } else {
-        // Determine role from stored Supabase profile
-        const stored = localStorage.getItem('user');
-        const role = stored ? JSON.parse(stored).role as UserRole : 'client';
-        onLoginSuccess(role);
-        if (role === 'admin') {
-          navigate('/admin/clients');
-        } else {
+        try {
+          // Fetch current session to get user ID
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          const userId = sessionData?.session?.user?.id;
+          let role: UserRole = 'client';
+          if (userId) {
+            // Fetch role from users table
+            const { data: profile, error: profileError } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', userId)
+              .single();
+            if (!profileError && profile?.role) {
+              role = profile.role as UserRole;
+            }
+            // Store user info in localStorage
+            localStorage.setItem('user', JSON.stringify({ id: userId, email: formData.email, role }));
+          }
+          onLoginSuccess(role);
+          // Redirect based on role
+          if (role === 'admin') {
+            navigate('/admin/clients');
+          } else {
+            navigate('/chat');
+          }
+        } catch (fetchErr) {
+          console.error('Error retrieving user role:', fetchErr);
+          // Fallback redirect
+          onLoginSuccess('client');
           navigate('/chat');
         }
       }

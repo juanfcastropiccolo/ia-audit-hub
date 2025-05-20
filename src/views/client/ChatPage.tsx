@@ -114,8 +114,8 @@ const ChatHeader = ({
   const [showModelSelector, setShowModelSelector] = useState(false);
 
   return (
-    <div className="bg-gray-800 border-b border-gray-700 p-3 z-20 sticky top-0">
-      <div className="max-w-3xl mx-auto flex items-center justify-between">
+    <div className="bg-primary border-b border-indigo p-3 z-20 sticky top-0">
+      <div className="max-w-4xl mx-auto flex items-center justify-between">
         <h1 className="text-xl font-semibold text-white">Asistente de Auditoría IA</h1>
         
         <div className="flex items-center space-x-4">
@@ -137,8 +137,8 @@ const ChatHeader = ({
                       onApiModelChange(model);
                       setShowModelSelector(false);
                     }}
-                    className={`block w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-600 transition-colors ${
-                      selectedApiModel === model ? 'bg-blue-600 font-semibold' : ''
+                  className={`block w-full text-left px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-600 transition-colors ${
+                      selectedApiModel === model ? 'bg-primary font-semibold' : ''
                     }`}
                   >
                     {getModelDisplayName(model)}
@@ -176,11 +176,10 @@ function ChatPage() {
   } = useChat();
   const { signOut } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [fileInfoForDisplay, setFileInfoForDisplay] = useState<{ fileName: string; fileUrl: string; fileType: string } | null>(null);
+  const inputRef = useRef(null as HTMLInputElement | null);
+  const fileInputRef = useRef(null as HTMLInputElement | null);
+  const messagesEndRef = useRef(null as HTMLDivElement | null);
+  const [selectedFile, setSelectedFile] = useState(null as File | null);
   const [isInputFocused, setIsInputFocused] = useState(false);
   
   useEffect(() => {
@@ -205,7 +204,6 @@ function ChatPage() {
       await sendMessage(currentMessage, currentModel, selectedFile || undefined);
       setCurrentMessage('');
       setSelectedFile(null);
-      setFileInfoForDisplay(null);
     } catch (error) {
       console.error('ChatPage: Error sending message:', error);
     }
@@ -227,7 +225,6 @@ function ChatPage() {
     if (!file) return;
     
     setSelectedFile(file);
-    setFileInfoForDisplay(null);
     
     if (e.target) e.target.value = '';
   };
@@ -237,8 +234,45 @@ function ChatPage() {
     setFileInfoForDisplay(null);
   };
 
+  // Prepare list of uploaded files from user messages
+  const uploadedFiles = Array.from(
+    new Map(
+      messages
+        .filter(m => m.sender === 'client' && m.fileUrl)
+        .map(m => [m.fileUrl, { fileName: m.fileName, fileUrl: m.fileUrl, fileType: m.fileType }])
+    ).values()
+  );
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-deep-indigo text-white">
+      {/* Sidebar: Uploaded Documents */}
+      <aside className="hidden lg:flex flex-col w-80 bg-primary border-r border-indigo">
+        <div className="px-4 py-3 font-semibold text-white">Documents</div>
+        <div className="flex-grow overflow-y-auto px-4 space-y-2">
+          {uploadedFiles.length > 0 ? (
+            uploadedFiles.map((f, idx) => (
+              <MessageAttachment
+                key={idx}
+                fileName={f.fileName}
+                fileUrl={f.fileUrl}
+                fileType={f.fileType}
+              />
+            ))
+          ) : (
+            <p className="text-gray-300 text-sm text-center mt-4">No documents uploaded.</p>
+          )}
+        </div>
+        <div className="px-4 py-3">
+          <button
+            onClick={handleUploadClick}
+            disabled={isLoading}
+            className="w-full py-2 bg-secondary text-deep-indigo font-medium rounded hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            Upload Document
+          </button>
+        </div>
+      </aside>
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-grow">
       <ChatHeader 
         selectedApiModel={currentModel}
         onApiModelChange={handleModelChange} 
@@ -262,7 +296,7 @@ function ChatPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length > 0 ? (
-            <div className="max-w-3xl mx-auto w-full">
+            <div className="max-w-4xl mx-auto w-full">
               {messages.map(msg => (
                 <div 
                   key={msg.id} 
@@ -271,7 +305,7 @@ function ChatPage() {
                   <div 
                     className={`max-w-[80%] sm:max-w-[70%] rounded-xl px-4 py-2.5 shadow ${
                       msg.sender === 'client'
-                        ? 'bg-blue-600 text-white rounded-br-none'
+                        ? 'bg-primary text-white rounded-br-none'
                         : msg.sender === 'system' 
                         ? 'bg-yellow-500/20 text-yellow-200 text-xs italic border border-yellow-500/30 self-center mx-auto text-center px-3 py-1.5'
                         : 'bg-gray-700 text-gray-100 rounded-bl-none'
@@ -310,7 +344,7 @@ function ChatPage() {
         </div>
         
         <div className="px-4 pt-3 pb-4 border-t border-gray-700/60 bg-gray-900">
-          <div className="relative w-full max-w-3xl mx-auto">
+          <div className="relative w-full max-w-4xl mx-auto">
             {selectedFile && (
               <FilePreview 
                 file={selectedFile} 
@@ -318,7 +352,7 @@ function ChatPage() {
               />
             )}
             
-            <div className={`relative flex items-center w-full bg-gray-800 border ${isInputFocused ? 'border-blue-500 shadow-md' : 'border-gray-700'} rounded-xl overflow-hidden transition-all`}>
+            <div className={`relative flex items-center w-full bg-deep-indigo border ${isInputFocused ? 'border-secondary shadow-lg' : 'border-indigo'} rounded-xl overflow-hidden transition-all`}>
               <button 
                 onClick={handleUploadClick} 
                 className={`p-3 ${isLoading ? 'text-gray-500 cursor-not-allowed' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/70'} transition-colors`}
@@ -363,7 +397,7 @@ function ChatPage() {
                   disabled={(!currentMessage.trim() && !selectedFile) || isLoading}
                   className={`p-2.5 text-white rounded-lg transition-all ml-1 ${
                     (currentMessage.trim() || selectedFile) && !isLoading 
-                    ? 'bg-blue-600 hover:bg-blue-700 shadow-md' 
+                  ? 'bg-primary hover:bg-secondary shadow-md' 
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   }`}
                   aria-label="Enviar mensaje"
@@ -380,6 +414,7 @@ function ChatPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
