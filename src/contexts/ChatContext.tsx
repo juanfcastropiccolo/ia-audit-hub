@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
-import { sendMessageToLLM, uploadFileForAnalysis } from '../api/apiService';
+import { sendMessageToLLM, uploadFileForAnalysis, startAudit as apiStartAudit } from '../api/apiService';
 import type { LLMModel as ApiLLMModel_Internal } from '../api/apiService';
 
 // Re-export ApiLLMModel for use in ChatPage
@@ -33,6 +33,7 @@ type ChatContextType = {
   error: string | null;
   currentModel: ApiLLMModel_Internal; // Exposed current model
   setCurrentModel: (model: ApiLLMModel_Internal) => void; // Function to set model from ChatPage
+  startAudit: () => Promise<string>;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -387,6 +388,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Function to start the full audit process
+  const startAudit = useCallback(async (): Promise<string> => {
+    if (!user) {
+      setError('Usuario no autenticado.');
+      throw new Error('Usuario no autenticado.');
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await apiStartAudit({ clientId: user.id, sessionId, modelType: currentModel });
+      const systemMessage: Message = {
+        id: uuidv4(),
+        user_id: user.id,
+        sender: 'system',
+        message: res.message,
+        timestamp: new Date().toISOString(),
+        model: 'system'
+      };
+      setMessages(prev => [...prev, systemMessage]);
+      return res.message;
+    } catch (err: any) {
+      console.error('Error starting audit:', err);
+      setError('No se pudo iniciar la auditoría.');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, sessionId]);
+
   return (
     <ChatContext.Provider value={{ 
       messages, 
@@ -395,7 +425,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       isLoading, 
       error,
       currentModel,
-      setCurrentModel
+      setCurrentModel,
+      startAudit
     }}>
       {children}
     </ChatContext.Provider>

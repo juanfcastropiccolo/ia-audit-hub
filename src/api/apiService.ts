@@ -111,6 +111,37 @@ export const sendMessageToLLM = async (params: SendMessageParams): Promise<Messa
     };
   }
 };
+// Function to initiate full audit process on backend
+export const startAudit = async (
+  params: { clientId: string; sessionId: string; modelType: LLMModel }
+): Promise<{ message: string; sessionId: string }> => {
+  try {
+    // Use FormData to match backend Form(...) parameters
+    const formData = new FormData();
+    formData.append('client_id', params.clientId);
+    formData.append('session_id', params.sessionId);
+    formData.append('model_type', params.modelType);
+    const response = await fetch(
+      `${API_URL}/api/start-audit`,
+      {
+        method: 'POST',
+        body: formData
+      }
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Audit start failed: ${response.status} ${response.statusText} - ${text}`);
+    }
+    const data = await response.json();
+    return {
+      message: data.message || 'Auditoría iniciada.',
+      sessionId: data.session_id || params.sessionId
+    };
+  } catch (error) {
+    console.error('Error starting audit:', error);
+    throw error;
+  }
+};
 
 // Function to upload files
 export const uploadFileForAnalysis = async (

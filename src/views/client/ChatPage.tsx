@@ -172,7 +172,8 @@ function ChatPage() {
     isLoading,
     error,
     currentModel,
-    setCurrentModel
+    setCurrentModel,
+    startAudit
   } = useChat();
   const { signOut } = useAuth();
   const [currentMessage, setCurrentMessage] = useState('');
@@ -181,6 +182,11 @@ function ChatPage() {
   const messagesEndRef = useRef(null as HTMLDivElement | null);
   const [selectedFile, setSelectedFile] = useState(null as File | null);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [showAuditConfirm, setShowAuditConfirm] = useState(false);
+
+  // Summary counts for confirmation modal
+  const attachedFilesCount = messages.filter(msg => msg.fileName).length;
+  const clientMessagesCount = messages.filter(msg => msg.sender === 'client').length;
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -233,6 +239,15 @@ function ChatPage() {
     setSelectedFile(null);
     setFileInfoForDisplay(null);
   };
+  
+  const handleConfirmStartAudit = async () => {
+    setShowAuditConfirm(false);
+    try {
+      await startAudit();
+    } catch (_) {
+      // Error is handled in context
+    }
+  };
 
   // Prepare list of uploaded files from user messages
   const uploadedFiles = Array.from(
@@ -273,6 +288,34 @@ function ChatPage() {
       </aside>
       {/* Main Chat Area */}
       <div className="flex flex-col flex-grow">
+    <div className="flex flex-col h-screen bg-gray-900 text-white">
+      {/* Confirmation modal for starting audit */}
+      {showAuditConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 text-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Confirmar inicio de auditoría</h2>
+            <p className="mb-4">Resumen del contexto recopilado:</p>
+            <ul className="list-disc list-inside text-sm mb-4">
+              <li>{`Mensajes del cliente: ${clientMessagesCount}`}</li>
+              <li>{`Archivos adjuntos: ${attachedFilesCount}`}</li>
+            </ul>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowAuditConfirm(false)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmStartAudit}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
+              >
+                Iniciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ChatHeader 
         selectedApiModel={currentModel}
         onApiModelChange={handleModelChange} 
@@ -344,7 +387,22 @@ function ChatPage() {
         </div>
         
         <div className="px-4 pt-3 pb-4 border-t border-gray-700/60 bg-gray-900">
-          <div className="relative w-full max-w-4xl mx-auto">
+          {/* Button to start the full audit process */}
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setShowAuditConfirm(true)}
+              disabled={isLoading}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                isLoading
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+              aria-label="Iniciar auditoría"
+            >
+              Iniciar Auditoría
+            </button>
+          </div>
+          <div className="relative w-full max-w-3xl mx-auto">
             {selectedFile && (
               <FilePreview 
                 file={selectedFile} 
@@ -417,6 +475,7 @@ function ChatPage() {
       </div>
       </div>
     </div>
+  </div>
   );
 }
 

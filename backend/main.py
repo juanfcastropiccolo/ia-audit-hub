@@ -19,9 +19,17 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
+import google.generativeai as genai
+# Configure Google Gemini API key for ADK
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 from collections import deque
 import asyncio
+<<<<<<< HEAD
 from fastapi import FastAPI
+=======
+from pydantic import BaseModel
+from fastapi import FastAPI, Query
+>>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
 
 # Add the parent directory to sys.path to ensure imports work
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +39,18 @@ if parent_dir not in sys.path:
 
 # Cargar variables de entorno
 load_dotenv()
+_vite_anto = os.getenv("VITE_ANTHROPIC_API_KEY")
+if _vite_anto and not os.getenv("ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = _vite_anto
+_vite_oa = os.getenv("VITE_OPENAI_API_KEY")
+if _vite_oa and not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = _vite_oa
+_vite_google = os.getenv("VITE_GOOGLE_API_KEY")
+if _vite_google and not os.getenv("GOOGLE_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = _vite_google
+
+# (Re)configure Google Gemini API key for ADK after loading environment variables
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Importar FastAPI CORS
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,6 +77,10 @@ from backend.agents import (
 
 from backend.utils import SupabaseSessionService, setup_logger
 log = setup_logger(__name__)
+# Subclase de InMemorySessionService que acepta llamadas posicionales a get_session
+class PatchedInMemorySessionService(InMemorySessionService):
+    def get_session(self, app_name, user_id=None, session_id=None, *args, **kwargs):
+        return super().get_session(app_name=app_name, user_id=user_id, session_id=session_id)
 
 app = FastAPI(title="API de Auditoría con Agentes IA", version="0.1.0")
 
@@ -68,6 +92,145 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Serve uploads directory as static files
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Endpoint: upload file for initial Assistant peer-review and context building
+from fastapi import UploadFile, File, Form
+@app.post("/api/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    client_id: str = Form(...),
+    session_id: str = Form(...),
+    model_type: str = Form(...),
+):
+    """
+    Receive a file, perform a peer-review by two Assistant agents, and return summary.
+    """
+    # Save uploaded file
+    upload_dir = os.path.join("uploads", client_id, session_id)
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, file.filename)
+    contents = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    # Extract text for analysis
+    text_content = None
+    try:
+        import PyPDF2
+        with open(file_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            pages = [p.extract_text() or "" for p in reader.pages]
+            text_content = "\n".join(pages)
+    except Exception:
+        pass
+    if text_content is None:
+        # Try CSV/Excel
+        try:
+            import pandas as pd
+            df = pd.read_excel(file_path) if file.filename.lower().endswith(('.xls', '.xlsx')) else pd.read_csv(file_path)
+            text_content = df.to_csv(index=False)
+        except Exception:
+            pass
+    if text_content is None:
+        # Fallback for text files
+        try:
+            with open(file_path, encoding='utf-8', errors='ignore') as f:
+                text_content = f.read()
+        except Exception:
+            text_content = f"[Could not extract text from {file.filename}]"
+    # Determine model flags
+    use_openai_flag = model_type.lower() in ("gpt4", "gpt-4", "gpt-3.5", "gpt35")
+    use_anthropic_flag = model_type.lower().startswith("claude")
+    # Build assistant reviews
+    prompt = f"Revisa el siguiente documento:\n---\n{text_content}\n---\nProporciona un resumen crítico." 
+    # Primary review
+    review1 = run_assistant_agent(client_id, session_id, prompt,
+                                  use_supabase=False,
+                                  use_anthropic=use_anthropic_flag,
+                                  use_openai=use_openai_flag)
+    # Peer review by another Assistant
+    review2 = run_assistant_agent(client_id, session_id,
+                                  f"Por favor, revisa y comenta esta revisión anterior:\n{review1}",
+                                  use_supabase=False,
+                                  use_anthropic=use_anthropic_flag,
+                                  use_openai=use_openai_flag)
+    # Combine reviews
+    summary = f"Revisión inicial:\n{review1}\n\nRevisión de pares:\n{review2}"
+    return JSONResponse({
+        "message": summary,
+        "session_id": session_id,
+        "model_used": model_type
+    })
+
+# Endpoint: start full audit pipeline and generate PDF report
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+except ImportError:
+    canvas = None
+    letter = None
+import io
+
+def generate_pdf(sections: list[str]) -> bytes:
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y = height - 40
+    c.setFont("Helvetica-Bold", 14)
+    for idx, sec in enumerate(sections, start=1):
+        c.drawString(40, y, f"Sección {idx}")
+        y -= 24
+        c.setFont("Helvetica", 12)
+        for line in sec.split('\n'):
+            if y < 40:
+                c.showPage()
+                y = height - 40
+                c.setFont("Helvetica", 12)
+            c.drawString(40, y, line[:90])
+            y -= 18
+        y -= 20
+    c.save()
+    data = buffer.getvalue()
+    buffer.close()
+    return data
+
+@app.post("/api/start-audit")
+def start_audit(
+    client_id: str = Form(...),
+    session_id: str = Form(...),
+    model_type: str = Form(...)
+):
+    """
+    Execute the full audit chain (Assistant→Senior→Supervisor→Manager) and return PDF report URL.
+    """
+    # Determine model flags
+    use_openai_flag = model_type.lower() in ("gpt4", "gpt-4", "gpt-3.5", "gpt35")
+    use_anthropic_flag = model_type.lower().startswith("claude")
+    # Retrieve context from session (simple history)
+    session_service = initialize_session_service(use_supabase=False)
+    session = session_service.get_session(APP_NAME, client_id, session_id)
+    history = session.state.get("history_messages", []) if session else []
+    context = "\n".join(history)
+    # Chain of reviews
+    a1 = run_assistant_agent(client_id, session_id, context, False, use_anthropic_flag, use_openai_flag)
+    a2 = run_assistant_agent(client_id, session_id, a1, False, use_anthropic_flag, use_openai_flag)
+    s1 = run_senior_agent(client_id, session_id, a2, False, use_anthropic_flag, use_openai_flag)
+    s2 = run_senior_agent(client_id, session_id, s1, False, use_anthropic_flag, use_openai_flag)
+    sup = run_supervisor_agent(client_id, session_id, s2, False, use_anthropic_flag, use_openai_flag)
+    man = run_manager_agent(client_id, session_id, sup, False, use_anthropic_flag, use_openai_flag)
+    # Generate PDF
+    report_bytes = generate_pdf([context, a1, a2, s1, s2, sup, man])
+    # Save PDF
+    out_dir = os.path.join("uploads", client_id, session_id)
+    os.makedirs(out_dir, exist_ok=True)
+    report_path = os.path.join(out_dir, "audit_report.pdf")
+    with open(report_path, "wb") as f:
+        f.write(report_bytes)
+    # Return URL for download (static files served separately)
+    report_url = f"/uploads/{client_id}/{session_id}/audit_report.pdf"
+    return JSONResponse({"message": "Audit pipeline completed.", "report_url": report_url})
 
 def initialize_session_service(*, use_supabase: bool = False):
     """
@@ -85,14 +248,58 @@ def initialize_session_service(*, use_supabase: bool = False):
 
     if use_supabase and supabase_url and supabase_key:
         log.info("Inicializando servicio de sesión con Supabase…")
-        return SupabaseSessionService()
+        service = SupabaseSessionService()
     else:
         if use_supabase:
-            log.warning("Variables SUPABASE_URL / SUPABASE_SERVICE_KEY no definidas. "
-                        "Se usará InMemorySessionService.")
+            log.warning(
+                "Variables SUPABASE_URL / SUPABASE_SERVICE_KEY no definidas. Se usará InMemorySessionService."
+            )
         else:
             log.info("Inicializando servicio de sesión en memoria…")
-        return InMemorySessionService()
+        service = PatchedInMemorySessionService()
+    return service
+    
+# Application models and state for API endpoints
+MAX_AUDIT_LOG_ENTRIES = 200
+
+class ChatRequest(BaseModel):
+    message: str
+    client_id: str
+    session_id: Optional[str] = None
+    model_type: Optional[str] = None
+    agent_type: Optional[str] = "assistant"
+
+class AgentResponse(BaseModel):
+    message: str
+    client_id: str
+    session_id: str
+    model_used: Optional[str] = None
+
+class ModelSettings(BaseModel):
+    model_type: str
+
+class ModelSettingsResponse(BaseModel):
+    success: bool
+    message: str
+    model_type: str
+
+# Initialize application state
+app_state = {
+    "session_service": initialize_session_service(use_supabase=False),
+    "use_supabase": False,
+    "use_anthropic": False,
+    "use_openai": False,
+    "active_teams": {},
+    "connected_clients": set(),
+    "uploaded_files": {},
+    "default_model": "gemini",
+    "audit_log": deque(maxlen=MAX_AUDIT_LOG_ENTRIES),
+}
+
+def validate_client_id(client_id: str) -> bool:
+    if not client_id or len(client_id) < 4:
+        return False
+    return True
 
 def run_assistant_agent(
     client_id: str,
@@ -120,45 +327,73 @@ def run_assistant_agent(
     -------
     str  – Respuesta del agente.
     """
-    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
-    if use_openai:
+    # Official Anthropic SDK call (preferred)
+    if use_anthropic:
         try:
-            import openai
+            import anthropic
+            client = anthropic.Anthropic()
+            resp = client.messages.create(
+                model="claude-3-opus-20240229",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": message}],
+            )
+            # Try to extract content list
+            if hasattr(resp, 'content'):
+                parts = resp.content
+                try:
+                    # resp.content is list of parts with .text
+                    return ''.join(getattr(p, 'text', str(p)) for p in parts)
+                except Exception:
+                    return str(parts)
+            # Fallback to .completion attribute
+            return getattr(resp, 'completion', str(resp))
+        except ImportError:
+            pass
+        except Exception as e:
+            return f"Error calling Anthropic SDK: {e}"
+    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    if use_openai or use_anthropic:
+        try:
+            from openai import OpenAI
         except ImportError:
             return "Error: openai library not installed."
-        key = os.getenv("OPENAI_API_KEY")
-        if not key:
-            return "Error: OPENAI_API_KEY not set."
-        openai.api_key = key
+        # Determine API key and base
+        if use_openai:
+            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("VITE_OPENAI_API_KEY")
+            api_base = None
+            model_name = "gpt-4"
+        else:
+            api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("VITE_ANTHROPIC_API_KEY")
+            api_base = "https://api.anthropic.com/v1"
+            model_name = "claude-3-opus-20240229"
+        if not api_key:
+            return f"Error: {('OPENAI' if use_openai else 'ANTHROPIC')}_API_KEY not set."
+        # Initialize client
         try:
-            resp = openai.chat.completions.create(
-                model="gpt-4",
+            if api_base:
+                client = OpenAI(api_key=api_key, api_base=api_base)
+            else:
+                client = OpenAI(api_key=api_key)
+        except Exception:
+            return "Error initializing OpenAI client."
+        # Perform chat completion
+        try:
+            resp = client.chat.completions.create(
+                model=model_name,
                 messages=[{"role": "user", "content": message}],
                 max_tokens=1024,
             )
-            return resp.choices[0].message.content
+            # Extract content
+            choice = resp.choices[0]
+            # Support both object and dict style
+            if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                return choice.message.content
+            elif isinstance(choice, dict) and 'message' in choice:
+                return choice['message'].get('content', '')
+            else:
+                return str(choice)
         except Exception as e:
             return f"Error calling OpenAI API: {e}"
-    if use_anthropic:
-        # Use OpenAI-compatible endpoint for Anthropic Claude
-        try:
-            import openai
-        except ImportError:
-            return "Error: openai library not installed."
-        key = os.getenv("ANTHROPIC_API_KEY")
-        if not key:
-            return "Error: ANTHROPIC_API_KEY not set."
-        openai.api_key = key
-        openai.api_base = "https://api.anthropic.com/v1"
-        try:
-            resp = openai.ChatCompletion.create(
-                model="claude-3-opus-20240229",
-                messages=[{"role": "user", "content": message}],
-                max_tokens=1024,
-            )
-            return resp.choices[0].message.content
-        except Exception as e:
-            return f"Error calling Anthropic API: {e}"
     # 1) Servicio de sesión
     session_service = initialize_session_service(use_supabase=use_supabase)
 
@@ -255,7 +490,7 @@ def run_senior_agent(
             return "Error: OPENAI_API_KEY not set."
         openai.api_key = key
         try:
-            resp = openai.chat.completions.create(
+            resp = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": message}],
                 max_tokens=1024,
@@ -264,7 +499,6 @@ def run_senior_agent(
         except Exception as e:
             return f"Error calling OpenAI API: {e}"
     if use_anthropic:
-        # Use OpenAI-compatible endpoint for Anthropic Claude
         try:
             import openai
         except ImportError:
@@ -366,7 +600,7 @@ def run_supervisor_agent(
     -------
     str – Respuesta del agente.
     """
-    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    # Direct LLM API integration: OpenAI GPT and Anthropic Claude
     if use_openai:
         try:
             import openai
@@ -377,7 +611,7 @@ def run_supervisor_agent(
             return "Error: OPENAI_API_KEY not set."
         openai.api_key = key
         try:
-            resp = openai.chat.completions.create(
+            resp = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": message}],
                 max_tokens=1024,
@@ -386,7 +620,7 @@ def run_supervisor_agent(
         except Exception as e:
             return f"Error calling OpenAI API: {e}"
     if use_anthropic:
-        # Use OpenAI-compatible endpoint for Anthropic Claude
+        # Anthropic (Claude) via OpenAI-compatible interface
         try:
             import openai
         except ImportError:
@@ -479,7 +713,7 @@ def run_manager_agent(
     -------
     str – Respuesta del agente.
     """
-    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    # Direct LLM API integration: OpenAI GPT and Anthropic Claude
     if use_openai:
         try:
             import openai
@@ -490,7 +724,7 @@ def run_manager_agent(
             return "Error: OPENAI_API_KEY not set."
         openai.api_key = key
         try:
-            resp = openai.chat.completions.create(
+            resp = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": message}],
                 max_tokens=1024,
@@ -499,7 +733,7 @@ def run_manager_agent(
         except Exception as e:
             return f"Error calling OpenAI API: {e}"
     if use_anthropic:
-        # Use OpenAI-compatible endpoint for Anthropic Claude
+        # Anthropic (Claude) via OpenAI-compatible interface
         try:
             import openai
         except ImportError:
@@ -779,7 +1013,13 @@ def main():
     if args.mode == "interactive":
         run_interactive_mode(args)
     else:
-        run_api_mode(args)
+        # Ejecutar el servidor API con la app global (incluye endpoints /api/upload, /api/start-audit, /api/chat)
+        try:
+            import uvicorn
+        except ImportError:
+            print("Error: uvicorn no está instalado. Instálalo con: pip install uvicorn")
+            exit(1)
+        uvicorn.run("backend.main:app", host=args.host, port=args.port)
 
 
 def run_interactive_mode(args):
@@ -1404,30 +1644,56 @@ def run_api_mode(args):
             }
     
     # NEW CHAT ENDPOINT TO MATCH FRONTEND
-    @app.post("/api/chat", response_model=AgentResponse)
-    async def handle_chat_request(request: ChatRequest):
-        """Handles chat requests from the frontend."""
-        start_time = time.time()
-        client_id = request.client_id
-        session_id = request.session_id or str(uuid.uuid4())
-        message_text = request.message
+@app.post("/api/chat", response_model=AgentResponse)
+async def handle_chat_request(request: ChatRequest):
+    """Handles chat requests from the frontend."""
+    start_time = time.time()
+    client_id = request.client_id
+    session_id = request.session_id or str(uuid.uuid4())
+    message_text = request.message
 
-        if not validate_client_id(client_id):
-            return JSONResponse(
-                status_code=400,
-                content={"message": "ID de cliente inválido", "client_id": client_id, "session_id": session_id, "model_used": "error"}
-            )
+    if not validate_client_id(client_id):
+        return JSONResponse(
+            status_code=400,
+            content={"message": "ID de cliente inválido", "client_id": client_id, "session_id": session_id, "model_used": "error"}
+        )
 
-        # Determine model and agent type
-        # Model resolution: 1. From request, 2. From app_state (set by /api/settings/model), 3. Default to 'gemini'
-        requested_model_type = request.model_type or app_state.get("default_model", "gemini")
-        
-        # Ensure the model_type is one of the ADK-compatible types for agent creation
-        # The frontend sends 'gemini', 'claude', 'gpt4', 'mock'
-        # The ADK functions create_assistant_only etc. expect use_anthropic, use_openai booleans.
-        
-        final_model_type_for_response = requested_model_type # This is what we will return in model_used
+    # Determine model type and flags
+    requested_model_type = request.model_type or app_state.get("default_model", "gemini")
+    use_anthropic = requested_model_type.lower().startswith("claude")
+    use_openai = requested_model_type.lower().startswith("gpt")
+    # Map agent_type to runner function
+    agent_runner = {
+        "assistant": run_assistant_agent,
+        "senior": run_senior_agent,
+        "supervisor": run_supervisor_agent,
+        "manager": run_manager_agent,
+        "team": run_team_agent,
+    }.get(request.agent_type, run_assistant_agent)
+        # Invoke the runner in a thread
+    try:
+        response_text = await asyncio.to_thread(
+            agent_runner,
+            client_id,
+            session_id,
+            message_text,
+            use_supabase=app_state.get("use_supabase", False),
+            use_anthropic=use_anthropic,
+            use_openai=use_openai,
+        )
+        return AgentResponse(
+            message=response_text,
+            client_id=client_id,
+            session_id=session_id,
+            model_used=requested_model_type,
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error interno: {e}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
+        )
 
+<<<<<<< HEAD
         use_anthropic = requested_model_type.lower().startswith("claude")
         use_openai = requested_model_type.lower().startswith("gpt")
         # If 'gemini' or 'mock', both use_anthropic and use_openai will be False, leading to Gemini by default in ADK agent creation. 
@@ -1554,10 +1820,47 @@ def run_api_mode(args):
                 status_code=500,
                 content={"message": f"Error interno del servidor: {str(e)}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
             )
+=======
+# CHAT ENDPOINT: handle messages via assistant agent
+@app.post("/api/chat", response_model=AgentResponse)
+async def handle_chat_request(request: ChatRequest):
+    """Handles chat requests from the frontend by delegating to the assistant agent."""
+    client_id = request.client_id
+    session_id = request.session_id or str(uuid.uuid4())
+    if not validate_client_id(client_id):
+        return JSONResponse(
+            status_code=400,
+            content={"message": "ID de cliente inválido", "client_id": client_id, "session_id": session_id, "model_used": "error"}
+        )
+    model_type = request.model_type or app_state.get("default_model", "gemini")
+    use_anthropic = model_type.lower().startswith("claude")
+    use_openai = model_type.lower().startswith("gpt")
+    try:
+        response_text = await asyncio.to_thread(
+            run_assistant_agent,
+            client_id,
+            session_id,
+            request.message,
+            use_supabase=app_state.get("use_supabase", False),
+            use_anthropic=use_anthropic,
+            use_openai=use_openai,
+        )
+        return AgentResponse(
+            message=response_text,
+            client_id=client_id,
+            session_id=session_id,
+            model_used=model_type,
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error interno: {e}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
+        )
+>>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
 
     # Endpoint para obtener el informe final de auditoría
-    @app.get("/api/report/{session_id}")
-    async def get_audit_report(session_id: str, client_id: str = Query(...)):
+@app.get("/api/report/{session_id}")
+async def get_audit_report(session_id: str, client_id: str = Query(...)):
         """Endpoint para descargar el informe final de auditoría.
         
         Parámetros:
@@ -1660,6 +1963,7 @@ def run_api_mode(args):
                 content={"error": error_message}
             )
 
+<<<<<<< HEAD
     # Endpoint to list clients from Supabase
     @app.get("/api/clients")
     async def get_clients():
@@ -1700,6 +2004,8 @@ def run_api_mode(args):
             exit(1)
         else:
             raise
+=======
+>>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
 
 if __name__ == "__main__":
     # Ejecutar la función principal

@@ -19,6 +19,9 @@ function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [contextPrepared, setContextPrepared] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [summaryPreview, setSummaryPreview] = useState<string>('');
   const [userInfo, setUserInfo] = useState<{ email: string, role: string, name: string } | null>(null);
   const [sessionId, setSessionId] = useState(() => uuidv4());
   const [selectedModel, setSelectedModel] = useState<LLMModel>('mock'); // Default to mock for demo purposes
@@ -170,6 +173,9 @@ function ChatPage() {
         fileName: file.name
       };
       setMessages(prev => [...prev, responseMsg]);
+      // Mark context as prepared and store summary preview
+      setContextPrepared(true);
+      setSummaryPreview(response.message);
       
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -219,6 +225,62 @@ function ChatPage() {
         handleUploadClick={handleUploadClick}
         isLoading={isLoading}
       />
+      {/* Start Audit Button */}
+      {contextPrepared && !isLoading && (
+        <div className="fixed bottom-24 w-full flex justify-center">
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded shadow-lg"
+          >
+            Iniciar Auditoría
+          </button>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-lg w-full">
+            <h3 className="text-lg font-bold mb-4">Confirmar inicio de auditoría</h3>
+            <p className="mb-4">Resumen del contexto preparado:</p>
+            <div className="mb-4 p-2 border rounded max-h-48 overflow-y-auto text-sm bg-gray-50 dark:bg-gray-700">
+              {summaryPreview}
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+              >Cancelar</button>
+              <button
+                onClick={async () => {
+                  setShowModal(false);
+                  setIsLoading(true);
+                  // Call start-audit endpoint
+                  const form = new FormData();
+                  form.append('client_id', userInfo.email);
+                  form.append('session_id', sessionId);
+                  form.append('model_type', selectedModel);
+                  try {
+                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://'+window.location.hostname+':8000'}/api/start-audit`, {
+                      method: 'POST', body: form
+                    });
+                    const data = await res.json();
+                    // Notify user and provide link
+                    const finishMsg: Message = {
+                      id: uuidv4(), role: 'assistant', text: `La auditoría ha finalizado. Descarga el informe completo aquí: ${data.report_url}`, timestamp: new Date(), model: 'assistant'
+                    };
+                    setMessages(prev => [...prev, finishMsg]);
+                  } catch (err) {
+                    console.error('Error starting audit:', err);
+                    const errMsg: Message = { id: uuidv4(), role: 'assistant', text: 'Error al iniciar la auditoría. Intenta nuevamente.', timestamp: new Date(), model: 'assistant' };
+                    setMessages(prev => [...prev, errMsg]);
+                  } finally { setIsLoading(false); }
+                }}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded"
+              >Iniciar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ from backend.tools.tracing_tools import log_agent_action, get_action_history, ge
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from google.adk.tools import FunctionTool
+from google.adk.tools import FunctionTool  # deprecated, use auto-wrapped functions
 
 def create_senior_agent(use_anthropic: bool = False, use_openai: bool = False) -> LlmAgent:
     """
