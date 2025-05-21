@@ -26,5 +26,5 @@ dist-ssr
 # Archivos de variables de entorno
 .env
 .env.*  
-*.log
 __pycache__/
+*.log
