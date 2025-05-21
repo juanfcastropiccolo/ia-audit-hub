@@ -2,6 +2,8 @@ from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 import os
 import uuid
+import google.generativeai as genai
+
 
 from backend.config import (
     DEFAULT_ASSISTANT_MODEL, ASSISTANT_AGENT_NAME,
@@ -38,6 +40,7 @@ def create_assistant_agent(use_anthropic: bool = False, use_openai: bool = False
     elif use_anthropic:
         model = LiteLlm(model=CLAUDE_OPUS_MODEL)
     else:
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
         model = DEFAULT_ASSISTANT_MODEL
     
     # Crear el agente Asistente

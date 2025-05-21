@@ -50,10 +50,10 @@ GPT4_MODEL = "openai/gpt-4"
 GPT35_MODEL = "openai/gpt-3.5-turbo"
 
 # Configuración de modelos por defecto instanciados con LiteLlm
-DEFAULT_MANAGER_MODEL = LiteLlm(model=GEMINI_PRO_MODEL)
-DEFAULT_SUPERVISOR_MODEL = LiteLlm(model=GEMINI_PRO_MODEL)
-DEFAULT_SENIOR_MODEL = LiteLlm(model=GEMINI_FLASH_MODEL)
-DEFAULT_ASSISTANT_MODEL = LiteLlm(model=GEMINI_FLASH_MODEL)
+DEFAULT_MANAGER_MODEL = LiteLlm(model=GEMINI_PRO_MODEL, stream=True)
+DEFAULT_SUPERVISOR_MODEL = LiteLlm(model=GEMINI_PRO_MODEL, stream=True)
+DEFAULT_SENIOR_MODEL = LiteLlm(model=GEMINI_FLASH_MODEL, stream=True)
+DEFAULT_ASSISTANT_MODEL = LiteLlm(model=GEMINI_FLASH_MODEL, stream=True)
 
 # Configuración de trazabilidad
 ENABLE_TRACING = True

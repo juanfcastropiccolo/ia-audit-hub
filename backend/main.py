@@ -39,9 +39,9 @@ if _vite_anto and not os.getenv("ANTHROPIC_API_KEY"):
 _vite_oa = os.getenv("VITE_OPENAI_API_KEY")
 if _vite_oa and not os.getenv("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = _vite_oa
-_vite_google = os.getenv("VITE_GOOGLE_API_KEY")
-if _vite_google and not os.getenv("GOOGLE_API_KEY"):
-    os.environ["GOOGLE_API_KEY"] = _vite_google
+_vite_google = os.getenv("VITE_GEMINI_API_KEY")
+if _vite_google and not os.getenv("GEMINI_API_KEY"):
+    os.environ["GEMINI_API_KEY"] = _vite_google
 
 # (Re)configure Google Gemini API key for ADK after loading environment variables
 # deferring configure() call to application startup
@@ -1004,8 +1004,8 @@ def main():
     args = parser.parse_args()
 
     # ──────────── comprobación de credenciales ────────────
-    if not os.getenv("GOOGLE_API_KEY"):
-        print("ADVERTENCIA: GOOGLE_API_KEY no encontrada. Algunas funcionalidades IA pueden no funcionar.")
+    if not os.getenv("GEMINI_API_KEY"):
+        print("ADVERTENCIA: GEMINI_API_KEY no encontrada. Algunas funcionalidades IA pueden no funcionar.")
 
     if args.anthropic and not os.getenv("ANTHROPIC_API_KEY"):
         print("ADVERTENCIA: ANTHROPIC_API_KEY no encontrada. Claude no estará disponible.")
@@ -1249,7 +1249,24 @@ def run_api_mode(args):
         model_type: str
     
     # Crear aplicación FastAPI
-    app = FastAPI(title="API de Auditoría con Agentes IA", version="0.1.0")
+    app = FastAPI(title="API de Auditoría con Agentes IA", version="0.1.0", lifespan=lifespan)
+
+    from fastapi import FastAPI, Request
+    from contextlib import asynccontextmanager
+    
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("VITE_GEMINI_API_KEY")
+        if api_key:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            log.info("Google GenAI configurado correctamente")
+        else:
+            log.warning("GEMINI_API_KEY no definido → Gemini no podrá responder")
+        yield  # Application lifespan continues here
+    
+    
+
     
     # Configurar CORS
     app.add_middleware(
