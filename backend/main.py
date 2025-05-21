@@ -120,6 +120,45 @@ def run_assistant_agent(
     -------
     str  – Respuesta del agente.
     """
+    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    if use_openai:
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            return "Error: OPENAI_API_KEY not set."
+        openai.api_key = key
+        try:
+            resp = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling OpenAI API: {e}"
+    if use_anthropic:
+        # Use OpenAI-compatible endpoint for Anthropic Claude
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("ANTHROPIC_API_KEY")
+        if not key:
+            return "Error: ANTHROPIC_API_KEY not set."
+        openai.api_key = key
+        openai.api_base = "https://api.anthropic.com/v1"
+        try:
+            resp = openai.ChatCompletion.create(
+                model="claude-3-opus-20240229",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling Anthropic API: {e}"
     # 1) Servicio de sesión
     session_service = initialize_session_service(use_supabase=use_supabase)
 
@@ -205,6 +244,45 @@ def run_senior_agent(
     -------
     str – Respuesta del agente.
     """
+    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    if use_openai:
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            return "Error: OPENAI_API_KEY not set."
+        openai.api_key = key
+        try:
+            resp = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling OpenAI API: {e}"
+    if use_anthropic:
+        # Use OpenAI-compatible endpoint for Anthropic Claude
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("ANTHROPIC_API_KEY")
+        if not key:
+            return "Error: ANTHROPIC_API_KEY not set."
+        openai.api_key = key
+        openai.api_base = "https://api.anthropic.com/v1"
+        try:
+            resp = openai.ChatCompletion.create(
+                model="claude-3-opus-20240229",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling Anthropic API: {e}"
     # 1) Servicio de sesión
     session_service = initialize_session_service(use_supabase=use_supabase)
 
@@ -288,6 +366,45 @@ def run_supervisor_agent(
     -------
     str – Respuesta del agente.
     """
+    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    if use_openai:
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            return "Error: OPENAI_API_KEY not set."
+        openai.api_key = key
+        try:
+            resp = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling OpenAI API: {e}"
+    if use_anthropic:
+        # Use OpenAI-compatible endpoint for Anthropic Claude
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("ANTHROPIC_API_KEY")
+        if not key:
+            return "Error: ANTHROPIC_API_KEY not set."
+        openai.api_key = key
+        openai.api_base = "https://api.anthropic.com/v1"
+        try:
+            resp = openai.ChatCompletion.create(
+                model="claude-3-opus-20240229",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling Anthropic API: {e}"
     # 1) Servicio de sesión
     session_service = initialize_session_service(use_supabase=use_supabase)
 
@@ -362,6 +479,45 @@ def run_manager_agent(
     -------
     str – Respuesta del agente.
     """
+    # Direct API calls for OpenAI GPT and Anthropic Claude, bypassing ADK on demand
+    if use_openai:
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            return "Error: OPENAI_API_KEY not set."
+        openai.api_key = key
+        try:
+            resp = openai.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling OpenAI API: {e}"
+    if use_anthropic:
+        # Use OpenAI-compatible endpoint for Anthropic Claude
+        try:
+            import openai
+        except ImportError:
+            return "Error: openai library not installed."
+        key = os.getenv("ANTHROPIC_API_KEY")
+        if not key:
+            return "Error: ANTHROPIC_API_KEY not set."
+        openai.api_key = key
+        openai.api_base = "https://api.anthropic.com/v1"
+        try:
+            resp = openai.ChatCompletion.create(
+                model="claude-3-opus-20240229",
+                messages=[{"role": "user", "content": message}],
+                max_tokens=1024,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            return f"Error calling Anthropic API: {e}"
     # 1) Servicio de sesión
     session_service = initialize_session_service(use_supabase=use_supabase)
 
@@ -1272,8 +1428,8 @@ def run_api_mode(args):
         
         final_model_type_for_response = requested_model_type # This is what we will return in model_used
 
-        use_anthropic = (requested_model_type == "claude")
-        use_openai = (requested_model_type == "gpt4")
+        use_anthropic = requested_model_type.lower().startswith("claude")
+        use_openai = requested_model_type.lower().startswith("gpt")
         # If 'gemini' or 'mock', both use_anthropic and use_openai will be False, leading to Gemini by default in ADK agent creation. 
         # 'mock' model type is handled by the ADK runner or agent itself if designed that way, or we might need explicit mock handling here too.
         # For now, assuming ADK create_assistant_only handles the Gemini default if no specific flags are true.
