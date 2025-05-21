@@ -23,11 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Ignorar archivos de caché de Python
-
+# Archivos de variables de entorno
+.env
+.env.*  
+*.log
 __pycache__/
-*.py[cod]
-*.pyo
-
-# Archivos de subida temporales
-uploads/
