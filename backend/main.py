@@ -20,16 +20,10 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 import google.generativeai as genai
-# Configure Google Gemini API key for ADK
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Note: genai.configure is deferred to runtime to avoid blocking at import
 from collections import deque
 import asyncio
-<<<<<<< HEAD
 from fastapi import FastAPI
-=======
-from pydantic import BaseModel
-from fastapi import FastAPI, Query
->>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
 
 # Add the parent directory to sys.path to ensure imports work
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,7 +44,7 @@ if _vite_google and not os.getenv("GOOGLE_API_KEY"):
     os.environ["GOOGLE_API_KEY"] = _vite_google
 
 # (Re)configure Google Gemini API key for ADK after loading environment variables
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# deferring configure() call to application startup
 
 # Importar FastAPI CORS
 from fastapi.middleware.cors import CORSMiddleware
@@ -282,6 +276,22 @@ class ModelSettingsResponse(BaseModel):
     success: bool
     message: str
     model_type: str
+
+class AuditTeam(BaseModel):
+    id: str
+    client_id: str
+    agents: List[Dict[str, Any]]
+    current_task: Optional[str] = None
+    status: str
+
+class AuditEvent(BaseModel):
+    id: str
+    team_id: str
+    agent_name: str
+    event_type: str
+    details: Dict[str, Any]
+    timestamp: datetime
+    importance: str
 
 # Initialize application state
 app_state = {
@@ -1693,7 +1703,6 @@ async def handle_chat_request(request: ChatRequest):
             content={"message": f"Error interno: {e}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
         )
 
-<<<<<<< HEAD
         use_anthropic = requested_model_type.lower().startswith("claude")
         use_openai = requested_model_type.lower().startswith("gpt")
         # If 'gemini' or 'mock', both use_anthropic and use_openai will be False, leading to Gemini by default in ADK agent creation. 
@@ -1820,7 +1829,6 @@ async def handle_chat_request(request: ChatRequest):
                 status_code=500,
                 content={"message": f"Error interno del servidor: {str(e)}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
             )
-=======
 # CHAT ENDPOINT: handle messages via assistant agent
 @app.post("/api/chat", response_model=AgentResponse)
 async def handle_chat_request(request: ChatRequest):
@@ -1856,7 +1864,6 @@ async def handle_chat_request(request: ChatRequest):
             status_code=500,
             content={"message": f"Error interno: {e}", "client_id": client_id, "session_id": session_id, "model_used": "error"}
         )
->>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
 
     # Endpoint para obtener el informe final de auditoría
 @app.get("/api/report/{session_id}")
@@ -1963,49 +1970,33 @@ async def get_audit_report(session_id: str, client_id: str = Query(...)):
                 content={"error": error_message}
             )
 
-<<<<<<< HEAD
-    # Endpoint to list clients from Supabase
-    @app.get("/api/clients")
-    async def get_clients():
-        try:
-            from supabase import create_client
-            from backend.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_SCHEMA
-            supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
-            result = supabase.table("users").select("*").eq("role", "client").execute()
-            data = result.data or []
-            return JSONResponse(status_code=200, content=data)
-        except Exception as e:
-            log.error(f"Error fetching clients: {e}", exc_info=True)
-            return JSONResponse(status_code=500, content={"error": "Error interno al obtener clientes"})
-
-    # Endpoint to list active audit teams
-    @app.get("/api/teams", response_model=List[AuditTeam])
-    async def list_teams():
-        return list(app_state.get("active_teams", {}).values())
-
-    # Endpoint to list audit events, optional filtering by team_id
-    @app.get("/api/events", response_model=List[AuditEvent])
-    async def list_events(team_id: Optional[str] = None, limit: int = Query(50)):
-        events = list(app_state.get("audit_log", []))
-        if team_id:
-            events = [e for e in events if e.get("team_id") == team_id]
-        return events
-
-    # Iniciar servidor
-    print(f"Iniciando servidor API en {args.host}:{args.port}")
-    print(f"Usando Supabase: {args.supabase}")
-    print(f"Usando Anthropic: {args.anthropic}")
+ # Endpoint to list clients from Supabase
+@app.get("/api/clients")
+async def get_clients():
     try:
-        uvicorn.run(app, host=args.host, port=args.port)
-    except OSError as e:
-        if "Address already in use" in str(e):
-            print(f"Error: El puerto {args.port} ya está en uso a pesar de la verificación previa.")
-            print("Esto puede deberse a que otro proceso ocupó el puerto entre la verificación y el inicio del servidor.")
-            exit(1)
-        else:
-            raise
-=======
->>>>>>> cee2e33 (fix Claude and ChatGPT, falta GEMINI)
+        from supabase import create_client
+        from backend.config import SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_SCHEMA
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY, schema=SUPABASE_SCHEMA)
+        result = supabase.table("users").select("*").eq("role", "client").execute()
+        data = result.data or []
+        return JSONResponse(status_code=200, content=data)
+    except Exception as e:
+        log.error(f"Error fetching clients: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"error": "Error interno al obtener clientes"})
+
+# Endpoint to list active audit teams
+@app.get("/api/teams", response_model=List[AuditTeam])
+async def list_teams():
+    return list(app_state.get("active_teams", {}).values())
+
+# Endpoint to list audit events, optional filtering by team_id
+@app.get("/api/events", response_model=List[AuditEvent])
+async def list_events(team_id: Optional[str] = None, limit: int = Query(50)):
+    events = list(app_state.get("audit_log", []))
+    if team_id:
+        events = [e for e in events if e.get("team_id") == team_id]
+    return events
+
 
 if __name__ == "__main__":
     # Ejecutar la función principal
