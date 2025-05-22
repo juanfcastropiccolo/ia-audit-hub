@@ -304,7 +304,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   // Link to file if relevant
                   fileName: responseFileName, fileType: responseFileType, fileUrl: responseFileUrl
               };
-              setMessages(prev => prev.map(m => m.id === followupProcessingMessage.id ? textResponseMessage : m));
+              // setMessages(prev => prev.map(m => m.id === followupProcessingMessage.id ? textResponseMessage : m));
           }
         } catch (apiError: any) {
           console.error('Error during file processing or follow-up API call:', apiError);
